@@ -2206,7 +2206,7 @@ __metadata:
     "@react-navigation/devtools": "npm:~6.0.27"
     "@react-navigation/native": "npm:~6.0.16"
     "@react-navigation/stack": "npm:~6.3.29"
-    "@scure/bip39": "npm:^2.0.0"
+    "@scure/bip39": "npm:^2.0.1"
     "@testing-library/jest-native": "npm:~5.4.3"
     "@testing-library/react-native": "npm:~12.3.3"
     "@types/jest": "npm:~29.5.14"
@@ -5863,7 +5863,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip39@npm:^2.0.0":
+"@scure/bip39@npm:^2.0.1":
   version: 2.0.1
   resolution: "@scure/bip39@npm:2.0.1"
   dependencies:

@@ -236,7 +236,7 @@
   },
   "dependencies": {
     "@algorandfoundation/dp256": "^1.0.1",
-    "@scure/bip39": "^2.0.0",
+    "@scure/bip39": "^2.0.1",
     "hmd2v-xhd-wallet-api": "^1.2.0"
   }
 }
