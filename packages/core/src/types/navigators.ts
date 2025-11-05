@@ -62,6 +62,8 @@ export enum Screens {
   AutoLock = 'AutoLock',
   UpdateAvailable = 'Update Available',
   ConfigureMediator = 'Configure Mediator',
+  SetMnemonics = 'Set Mnemonics',
+  RecoveryPhrase = 'Recovery Phrase',
 }
 
 export enum Stacks {
@@ -116,6 +118,7 @@ export type OnboardingStackParams = {
   [Screens.Biometry]: undefined
   [Screens.NameWallet]: undefined
   [Screens.PushNotifications]: undefined
+  [Screens.SetMnemonics]: undefined
 }
 
 export type ContactStackParams = {
@@ -170,6 +173,7 @@ export type SettingStackParams = {
   [Screens.Tours]: undefined
   [Screens.ToggleBiometry]: undefined
   [Screens.ChangePIN]: undefined
+  [Screens.RecoveryPhrase]: undefined
   [Screens.ChangePINSuccess]: undefined
   [Screens.Terms]: undefined
   [Screens.Onboarding]: undefined

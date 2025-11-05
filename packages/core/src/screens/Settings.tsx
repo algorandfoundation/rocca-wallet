@@ -140,6 +140,13 @@ const Settings: React.FC<SettingsProps> = ({ navigation }) => {
           onPress: () => navigation.navigate(Screens.ChangePIN),
         },
         {
+          title: t('RecoveryPhrase.Title'),
+          value: undefined,
+          accessibilityLabel: t('RecoveryPhrase.Title'),
+          testID: testIdWithKey('Recovery Phrase'),
+          onPress: () => navigation.navigate(Screens.RecoveryPhrase),
+        },
+        {
           title: t('Settings.Language'),
           value: currentLanguage,
           accessibilityLabel: t('Settings.Language'),
@@ -406,6 +413,14 @@ const Settings: React.FC<SettingsProps> = ({ navigation }) => {
         )}
         sections={settingsSections}
         stickySectionHeadersEnabled={false}
+        // Disable virtualization during tests to ensure all items render
+        {...(process.env.NODE_ENV === 'test'
+          ? {
+              initialNumToRender: 1000,
+              windowSize: 100,
+              maxToRenderPerBatch: 1000,
+            }
+          : {})}
       ></SectionList>
     </SafeAreaView>
   )

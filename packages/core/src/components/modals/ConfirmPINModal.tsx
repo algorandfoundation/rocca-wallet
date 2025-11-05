@@ -98,7 +98,7 @@ const ConfirmPINModal: React.FC<ConfirmPINModalProps> = ({
           />
           {isLoading && (
             <View style={style.loadingContainer}>
-              <LoadingSpinner size={50} color={ColorPalette.brand.primary}/>
+              <LoadingSpinner size={50} color={ColorPalette.brand.primary} />
             </View>
           )}
           {modalState.visible && (

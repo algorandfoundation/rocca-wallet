@@ -50,15 +50,16 @@ import NavContainer from './contexts/navigation'
 import { NetworkProvider } from './contexts/network'
 import { useTour } from './contexts/tour/tour-context'
 import { TourProvider } from './contexts/tour/tour-provider'
+import AttemptLockout from './screens/AttemptLockout'
+import MnemonicSet from './screens/MnemonicSet'
+import Developer from './screens/Developer'
 import { useDeveloperMode } from './hooks/developer-mode'
 import usePreventScreenCapture from './hooks/screen-capture'
 import useBifoldAgentSetup from './hooks/useBifoldAgentSetup'
 import { OpenIDCredentialRecordProvider } from './modules/openid/context/OpenIDCredentialRecordProvider'
 import { DefaultScreenLayoutOptions } from './navigators/defaultLayoutOptions'
-import { DefaultScreenOptionsDictionary, useDefaultStackOptions } from './navigators/defaultStackOptions'
-import AttemptLockout from './screens/AttemptLockout'
+import { DefaultScreenOptionsDictionary } from './navigators/defaultStackOptions'
 import Biometry from './screens/Biometry'
-import Developer from './screens/Developer'
 import Onboarding from './screens/Onboarding'
 import OnboardingPages from './screens/OnboardingPages'
 import Preface from './screens/Preface'
@@ -95,6 +96,9 @@ export { Screens, Stacks, TabStacks } from './types/navigators'
 export * from './types/version-check'
 export { createLinkSecretIfRequired, getAgentModules } from './utils/agent'
 export { getCredentialIdentifiers, isValidAnonCredsCredential } from './utils/credential'
+export * from './modules/hd-wallet/hdWalletUtils'
+export * from './services/hdWalletKeychain'
+export * from './services/algorandHDWallet'
 export {
   connectFromScanOrDeepLink,
   formatTime,
@@ -217,6 +221,7 @@ export {
   Link,
   loadLoginAttempt,
   MaskType,
+  MnemonicSet,
   NavContainer,
   NetworkProvider,
   NotificationListItem,
@@ -248,7 +253,6 @@ export {
   UpdateAvailable,
   useActivity,
   useBifoldAgentSetup,
-  useDefaultStackOptions,
   useDeveloperMode,
   usePreventScreenCapture,
   useTour,
