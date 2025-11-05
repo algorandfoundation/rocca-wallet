@@ -71,7 +71,7 @@ export async function acquirePreAuthorizedAccessToken({
   agent: Agent
   resolvedCredentialOffer: OpenId4VciResolvedCredentialOffer
   txCode?: string
-}) {
+}): Promise<OpenId4VciRequestTokenResponse> {
   return await agent.modules.openId4VcHolder.requestToken({
     resolvedCredentialOffer,
     txCode,
@@ -204,14 +204,14 @@ export const customCredentialBindingResolver = async ({
 export const receiveCredentialFromOpenId4VciOffer = async ({
   agent,
   resolvedCredentialOffer,
-  accessToken,
+  tokenResponse,
   credentialConfigurationIdsToRequest,
   clientId,
   pidSchemes,
 }: {
   agent: Agent
   resolvedCredentialOffer: OpenId4VciResolvedCredentialOffer
-  accessToken: OpenId4VciRequestTokenResponse
+  tokenResponse: OpenId4VciRequestTokenResponse
   credentialConfigurationIdsToRequest?: string[]
   clientId?: string
   pidSchemes?: { sdJwtVcVcts: Array<string>; msoMdocDoctypes: Array<string> }
@@ -230,7 +230,7 @@ export const receiveCredentialFromOpenId4VciOffer = async ({
 
   const credentials = await agent.modules.openId4VcHolder.requestCredentials({
     resolvedCredentialOffer,
-    ...accessToken,
+    ...tokenResponse,
     clientId,
     credentialsToRequest: credentialConfigurationIdsToRequest,
     verifyCredentialStatus: false,

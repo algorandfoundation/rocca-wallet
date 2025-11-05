@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@algorandfoundation/dp256": "^1.0.1",
-    "@bifold/core": "2.7.4",
-    "@bifold/oca": "2.7.4",
+    "@bifold/core": "2.10.2",
+    "@bifold/oca": "2.10.2",
     "@craftzdog/react-native-buffer": "^6.1.1",
     "@credo-ts/anoncreds": "0.5.17",
     "@credo-ts/askar": "0.5.17",
@@ -33,6 +33,7 @@
     "@credo-ts/question-answer": "0.5.17",
     "@credo-ts/react-hooks": "0.6.1",
     "@credo-ts/react-native": "0.5.17",
+    "@credo-ts/webvh": "0.5.17",
     "@formatjs/intl-datetimeformat": "~4.2.6",
     "@formatjs/intl-displaynames": "~5.2.6",
     "@formatjs/intl-getcanonicallocales": "~1.7.3",
