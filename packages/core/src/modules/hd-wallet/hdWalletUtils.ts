@@ -1,6 +1,6 @@
 import * as bip39 from '@scure/bip39'
-import { wordlist } from '@scure/bip39/wordlists/english'
 import { fromSeed, XHDWalletAPI, KeyContext, BIP32DerivationType } from 'hmd2v-xhd-wallet-api'
+import { validateMnemonic } from './bip39Utils'
 
 /**
  * HD Wallet utilities for Algorand key derivation using xHD-Wallet-API
@@ -90,24 +90,6 @@ export class HDWalletService {
   ): Promise<Uint8Array> {
     return await this.cryptoService.ECDH(this.rootKey, keyContext, account, addressIndex, otherPartyPublicKey, isClient)
   }
-}
-
-/**
- * Validates a BIP39 mnemonic phrase
- * @param mnemonic The mnemonic phrase to validate
- * @returns True if valid, false otherwise
- */
-export const validateMnemonic = (mnemonic: string): boolean => {
-  return bip39.validateMnemonic(mnemonic, wordlist)
-}
-
-/**
- * Generates a new BIP39 mnemonic phrase
- * @param strength Entropy strength in bits (128, 160, 192, 224, 256)
- * @returns Generated mnemonic phrase
- */
-export const generateMnemonic = (strength: number = 256): string => {
-  return bip39.generateMnemonic(wordlist, strength)
 }
 
 /**

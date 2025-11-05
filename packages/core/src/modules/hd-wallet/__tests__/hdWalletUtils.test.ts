@@ -1,4 +1,5 @@
-import { createRootKeyFromMnemonicAsync, validateMnemonic, generateMnemonic } from '../hdWalletUtils'
+import { generateMnemonic, validateMnemonic } from '../bip39Utils'
+import { createRootKeyFromMnemonicAsync } from '../hdWalletUtils'
 
 describe('HD Wallet Utils', () => {
   // Test mnemonic from the xHD-Wallet-API test file
@@ -47,6 +48,4 @@ describe('HD Wallet Utils', () => {
       expect(mnemonic.split(' ')).toHaveLength(12)
     })
   })
-
-  // Removed createHDWallet tests: function not defined/exported
 })
