@@ -13,7 +13,7 @@ describe('Blockchain address encoding', () => {
     const keyIndex = 0
 
     // Derive public key
-    const pk = await wallet.generateAlgorandAddressKey(account, keyIndex, BIP32DerivationType.Peikert)
+    const pk = await wallet.generateAlgorandAddressKey(account, keyIndex, BIP32DerivationType.Khovratovich)
 
     // Encode address
     const address = encodeAddress(pk)
