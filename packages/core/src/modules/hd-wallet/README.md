@@ -39,7 +39,7 @@ const rootKey = fromSeed(seed) // Returns 96-byte Uint8Array
 // Initialize crypto service
 const cryptoService = new XHDWalletAPI()
 
-// Generate Algorand address key (BIP44 path: m'/44'/283'/account'/change/address_index)
+// Generate Algorand address key (BIP44 path: m'/44'/283'/account'/0/address_index)
 const addressKey = await cryptoService.keyGen(
   rootKey,
   KeyContext.Address,
@@ -48,7 +48,7 @@ const addressKey = await cryptoService.keyGen(
   BIP32DerivationType.Peikert
 )
 
-// Generate identity key (BIP44 path: m'/44'/0'/account'/change/address_index)  
+// Generate identity key (BIP44 path: m'/44'/0'/account'/0/address_index)  
 const identityKey = await cryptoService.keyGen(
   rootKey,
   KeyContext.Identity,
@@ -113,18 +113,14 @@ const hdWallet = new HDWalletService(existingMnemonic)
 The HD wallet follows BIP44 specification with Algorand-specific paths:
 
 ### Algorand Addresses
-- Path: `m'/44'/283'/account'/change/address_index`
+- Path: `m'/44'/283'/account'/0/address_index`
 - Context: `KeyContext.Address`
 - Derivation: `BIP32DerivationType.Peikert` (recommended)
 
 ### Identity Keys  
-- Path: `m'/44'/0'/account'/change/address_index`
+- Path: `m'/44'/0'/account'/0/address_index`
 - Context: `KeyContext.Identity`
 - Derivation: `BIP32DerivationType.Peikert` (recommended)
-
-### Transaction Signing
-- Use `BIP32DerivationType.Khovratovich` for transaction signing
-- This follows the reference implementation alignment
 
 ## Testing and Development
 
@@ -164,16 +160,9 @@ transformIgnorePatterns: [
 
 ## Files Added
 
+- `src/modules/hd-wallet/hdWalletUtils.ts` - BIP39 mnemonics utilities
 - `src/modules/hd-wallet/hdWalletUtils.ts` - Main HD wallet utilities
-- `src/modules/hd-wallet/__tests__/hdWalletUtils.test.ts` - Comprehensive tests
-
-## Next Steps
-
-1. **Wallet Integration**: Integrate HD wallet service into existing wallet initialization
-2. **UI Components**: Create UI components for account/address management  
-3. **Transaction Flow**: Integrate HD key signing into transaction flows
-4. **Address Generation**: Implement address generation and management UI
-5. **Account Management**: Add multi-account support with HD derivation
+- `src/modules/hd-wallet/__tests__/*` - Tests
 
 ## References
 

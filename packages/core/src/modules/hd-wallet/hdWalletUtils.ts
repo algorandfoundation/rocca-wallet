@@ -1,4 +1,6 @@
 import * as bip39 from '@scure/bip39'
+import { sha512_256 } from '@noble/hashes/sha2.js'
+import { base32 } from '@scure/base'
 import { fromSeed, XHDWalletAPI, KeyContext, BIP32DerivationType } from 'hmd2v-xhd-wallet-api'
 import { validateMnemonic } from './bip39Utils'
 
@@ -16,7 +18,7 @@ export const createRootKeyFromMnemonicAsync = async (
   mnemonic: string,
   passphrase: string = ''
 ): Promise<Uint8Array> => {
-  const seed = await bip39.mnemonicToSeed(mnemonic, passphrase)
+  const seed = bip39.mnemonicToSeedSync(mnemonic, passphrase)
   return fromSeed(Buffer.from(seed))
 }
 
@@ -69,7 +71,7 @@ export class HDWalletService {
     account: number,
     addressIndex: number,
     prefixEncodedTx: Uint8Array,
-    derivationType: BIP32DerivationType = BIP32DerivationType.Khovratovich
+    derivationType: BIP32DerivationType = BIP32DerivationType.Peikert
   ): Promise<Uint8Array> {
     return await this.cryptoService.signAlgoTransaction(
       this.rootKey,
@@ -93,13 +95,7 @@ export class HDWalletService {
 }
 
 /**
- * Creates an HD wallet service instance from a mnemonic
- * @param mnemonic BIP39 mnemonic phrase
- * @param passphrase Optional passphrase
- * @returns HDWalletService instance
- */
-/**
- * Async: Creates an HD wallet service instance from a mnemonic
+ * Async creates an HD wallet service instance from a mnemonic
  * @param mnemonic BIP39 mnemonic phrase
  * @param passphrase Optional passphrase
  * @returns Promise<HDWalletService>
@@ -109,4 +105,16 @@ export const createHDWalletAsync = async (mnemonic: string, passphrase?: string)
     throw new Error('Invalid BIP39 mnemonic phrase')
   }
   return await HDWalletService.fromMnemonic(mnemonic, passphrase)
+}
+
+/**
+ * Encodes a public key into a Base32 Algorand address, which includes a checksum at the end
+ * @param publicKey Public key as Uint8Array (32 bytes)
+ * @returns Algorand Address
+ */
+export function encodeAddress(publicKey: Uint8Array): string {
+  const hash = sha512_256(publicKey) // 32 bytes
+  const checksum = hash.slice(-4) // last 4 bytes
+  const addressBytes = new Uint8Array([...publicKey, ...checksum])
+  return base32.encode(addressBytes).replace(/=+$/, '').toUpperCase()
 }

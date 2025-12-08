@@ -235,8 +235,13 @@
     ]
   },
   "dependencies": {
+    "@algorandfoundation/algo-models": "^0.0.8",
+    "@algorandfoundation/algokit-utils": "^9.1.2",
     "@algorandfoundation/dp256": "^1.0.1",
+    "@algorandfoundation/liquid-auth-client": "algorandfoundation/liquid-auth-js#chore/dist",
+    "@scure/base": "^2.0.0",
     "@scure/bip39": "^2.0.1",
+    "algosdk": "^3.0.0",
     "hmd2v-xhd-wallet-api": "^1.2.0"
   }
 }
