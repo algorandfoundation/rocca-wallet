@@ -11,7 +11,7 @@ import { DeterministicP256 } from '@algorandfoundation/dp256'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import { parseLiquidAuthURI } from '../utils/parsers'
 
-import { SignalClient } from '@algorandfoundation/liquid-client/lib/signal'
+import { signal } from '@algorandfoundation/liquid-client/'
 import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/lib/encoding'
 import { encodeAddress } from '../modules/hd-wallet/hdWalletUtils'
 import {
@@ -58,7 +58,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
   const [dp256PrivateKey, setDp256PrivateKey] = useState<any | null>(null)
   const [origin, setOrigin] = useState<string | undefined>()
   const [requestId, setRequestId] = useState<string | undefined>()
-  const [signalClient, setSignalClient] = useState<SignalClient | null>(null)
+  const [signalClient, setSignalClient] = useState<signal.SignalClient | null>(null)
   const [hdWalletService, setHdWalletService] = useState<HDWalletService | null>(null)
   const [progress, setProgress] = useState<ProgressPhase>('idle')
   const [linkReady, setLinkReady] = useState<boolean>(false)
@@ -153,7 +153,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
 
             // Initialize SignalClient with a valid scheme (required by fetch in attestation)
             const baseUrl = parsed.origin.startsWith('http') ? parsed.origin : `https://${parsed.origin}`
-            const client = new SignalClient(baseUrl, { autoConnect: true })
+            const client = new signal.SignalClient(baseUrl, { autoConnect: true })
 
             // mark link readiness when server acknowledges link
             client.on('link', () => {
@@ -282,7 +282,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
   }
 
   // Decoupled signaling flow
-  const startSignalFlow = (client: SignalClient, reqId: string) => {
+  const startSignalFlow = (client: signal.SignalClient, reqId: string) => {
     // console.log("Trying to create SignalClient peer connection", { origin, requestId: reqId })
     if (isStartingPeerRef.current) {
       // console.log('[SignalClient] peer start already in progress; skipping duplicate')
