@@ -144,6 +144,7 @@
     "react-native-uuid": "~2.0.3",
     "react-native-vector-icons": "~10.0.3",
     "react-native-vision-camera": "~4.3.2",
+    "react-native-webrtc": "~124.0.7",
     "react-test-renderer": "~18.2.0",
     "rimraf": "~5.0.10",
     "tsyringe": "~4.8.0",
@@ -219,6 +220,7 @@
     "react-native-uuid": "~2.0.3",
     "react-native-vector-icons": "~10.0.3",
     "react-native-vision-camera": "*",
+    "react-native-webrtc": "~124.0.7",
     "tsyringe": "~4.8.0",
     "uuid": "~9.0.1"
   },
@@ -237,11 +239,12 @@
   "dependencies": {
     "@algorandfoundation/algo-models": "^0.0.8",
     "@algorandfoundation/algokit-utils": "^9.1.2",
-    "@algorandfoundation/dp256": "^1.0.1",
-    "@algorandfoundation/liquid-auth-client": "algorandfoundation/liquid-auth-js#chore/dist",
+    "@algorandfoundation/dp256": "^1.1.0",
+    "@algorandfoundation/liquid-client": "algorandfoundation/liquid-auth-js#chore/dist",
+    "@noble/hashes": "^1.4.0",
     "@scure/base": "^2.0.0",
     "@scure/bip39": "^2.0.1",
-    "algosdk": "^3.0.0",
+    "cbor-x": "^1.5.0",
     "hmd2v-xhd-wallet-api": "^1.2.0"
   }
 }

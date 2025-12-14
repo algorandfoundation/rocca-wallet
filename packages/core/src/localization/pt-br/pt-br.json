@@ -834,11 +834,15 @@
     "HistoryDetails": "History Details (PT-BR)",
     "UpdateAvailable": "Update Available (PT-BR)",
     "JSONDetails": "JSON details (PT-BR)",
-    "SetMnemonics": "Frase de Recuperação"
+    "SetMnemonics": "Frase de Recuperação",
+    "LiquidAuth": "Liquid Auth"
   },
   "Loading": {
     "TakingTooLong": "Isso esta demorando mais que o normal. Você pode voltar para a home ou continuar esperando.",
     "BackToHome": "Voltar para a home"
+  },
+  "LiquidAuth": {
+    "InvalidURI": "URI do Liquid inválida fornecida. requestId ausente."
   },
   "NameWallet": {
     "EnableWalletNaming": "Habilitar nome da carteira?",

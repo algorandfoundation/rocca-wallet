@@ -19,7 +19,6 @@
     "start": "react-native start --reset-cache"
   },
   "dependencies": {
-    "@algorandfoundation/dp256": "^1.0.1",
     "@bifold/core": "2.10.2",
     "@bifold/oca": "2.10.2",
     "@craftzdog/react-native-buffer": "^6.1.1",
@@ -97,6 +96,7 @@
     "react-native-uuid": "~2.0.3",
     "react-native-vector-icons": "~10.0.3",
     "react-native-vision-camera": "~4.3.2",
+    "react-native-webrtc": "^124.0.7",
     "react-native-webview": "~13.10.7",
     "stream-browserify": "^3.0.0",
     "text-encoding": "^0.7.0",

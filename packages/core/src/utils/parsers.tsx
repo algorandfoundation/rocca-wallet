@@ -25,6 +25,7 @@ export enum InvitationQrTypes {
   OPENID_VC = 'openid-vc://',
   DIDCOMM = 'didcomm://',
   HTTPS = 'https://',
+  LIQUID = 'liquid://',
 }
 
 export const isOpenIdCredentialOffer = (url: string) => {
@@ -68,6 +69,47 @@ export const isDidCommInvitation = (url: string) => {
   }
 
   return false
+}
+
+export const isLiquidAuthURI = (uri: string): boolean => {
+  return uri.startsWith(InvitationQrTypes.LIQUID)
+}
+
+export type LiquidAuthParams = {
+  origin: string
+  requestId?: string
+}
+
+// Parses URIs like: liquid://host[:port][/path]?requestId=<uuid>
+export const parseLiquidAuthURI = (uri: string): LiquidAuthParams | null => {
+  if (!isLiquidAuthURI(uri)) return null
+  try {
+    const withoutScheme = uri.slice(InvitationQrTypes.LIQUID.length)
+    const [hostAndPath, query = ''] = withoutScheme.split('?')
+    // host is before first '/' (path optional)
+    const host = hostAndPath.split('/')[0] || ''
+    const origin = host || 'liquid.local'
+    let requestId: string | undefined
+    if (query) {
+      // Minimal query parsing without relying on URLSearchParams (RN compatibility)
+      const parts = query.split('&')
+      for (const part of parts) {
+        const [rawKey, rawVal] = part.split('=')
+        const key = decodeURIComponent(rawKey || '')
+        const val = decodeURIComponent(rawVal || '')
+        if (!key) continue
+        if (key === 'requestId' || key.toLowerCase() === 'requestid' || key === 'rid') {
+          requestId = val
+          break
+        }
+      }
+    }
+    // Require requestId presence; return null if missing
+    if (!requestId) return null
+    return { origin, requestId }
+  } catch {
+    return null
+  }
 }
 
 export async function parseInvitationUrl(invitationUrl: string): Promise<ParseInvitationResult> {

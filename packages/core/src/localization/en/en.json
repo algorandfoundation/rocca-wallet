@@ -876,11 +876,15 @@
     "HistoryDetails": "History Details",
     "UpdateAvailable": "Update Available",
     "JSONDetails": "JSON details",
-    "SetMnemonics": "Set Recovery Phrase"
+    "SetMnemonics": "Set Recovery Phrase",
+    "LiquidAuth": "Liquid Auth"
   },
   "Loading": {
     "TakingTooLong": "This is taking longer than usual. You can return to home or continue waiting.",
     "BackToHome": "Go back to home"
+  },
+  "LiquidAuth": {
+    "InvalidURI": "Invalid liquid URI provided. Missing requestId."
   },
   "Mnemonic": {
     "WriteDownWarning": "⚠️ Write this down on paper and store it safely. This is the only way to recover your wallet if you lose access to this device.",

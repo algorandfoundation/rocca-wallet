@@ -64,6 +64,7 @@ export enum Screens {
   ConfigureMediator = 'Configure Mediator',
   SetMnemonics = 'Set Mnemonics',
   RecoveryPhrase = 'Recovery Phrase',
+  LiquidAuth = 'Liquid Auth',
 }
 
 export enum Stacks {
@@ -203,6 +204,7 @@ export type DeliveryStackParams = {
     openIDUri?: string
     openIDPresentationUri?: string
   }
+  [Screens.LiquidAuth]: { uri: string }
   [Screens.MobileVerifierLoading]: { proofId: string; connectionId: string }
   [Screens.ProofDetails]: { recordId: string }
   [Screens.CredentialOffer]: { credentialId: string }

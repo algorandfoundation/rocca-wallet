@@ -56,7 +56,7 @@ import {
   getDescriptorMetadata,
 } from './anonCredsProofRequestMapper'
 import { getCredentialName } from './cred-def'
-import { isOpenIdCredentialOffer, isOpenIdPresentationRequest } from './parsers'
+import { isLiquidAuthURI, isOpenIdCredentialOffer, isOpenIdPresentationRequest } from './parsers'
 import { isMediatorInvitation } from './mediatorhelpers'
 
 export { parsedCredDefNameFromCredential } from './cred-def'
@@ -1083,6 +1083,15 @@ export const connectFromScanOrDeepLink = async (
   // TODO:(jl) Do we care if the connection is a deep link?
   logger.info(`Attempting to connect from ${isDeepLink ? 'deeplink' : 'qr scan'}`)
   try {
+    if (isLiquidAuthURI(uri)) {
+      navigation.navigate(Stacks.ConnectionStack as any, {
+        screen: Screens.LiquidAuth,
+        params: { uri },
+      })
+
+      return
+    }
+
     if (isOpenIdCredentialOffer(uri)) {
       navigation.navigate(Stacks.ConnectionStack as any, {
         screen: Screens.Connection,

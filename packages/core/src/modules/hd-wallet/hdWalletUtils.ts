@@ -1,8 +1,9 @@
 import * as bip39 from '@scure/bip39'
 import { sha512_256 } from '@noble/hashes/sha2.js'
 import { base32 } from '@scure/base'
-import { fromSeed, XHDWalletAPI, KeyContext, BIP32DerivationType } from 'hmd2v-xhd-wallet-api'
+import { fromSeed, XHDWalletAPI, KeyContext, BIP32DerivationType, SignMetadata, Encoding } from 'hmd2v-xhd-wallet-api'
 import { validateMnemonic } from './bip39Utils'
+import authScema from './auth.request.json'
 
 /**
  * HD Wallet utilities for Algorand key derivation using xHD-Wallet-API
@@ -91,6 +92,33 @@ export class HDWalletService {
     isClient: boolean
   ): Promise<Uint8Array> {
     return await this.cryptoService.ECDH(this.rootKey, keyContext, account, addressIndex, otherPartyPublicKey, isClient)
+  }
+
+  /**
+   * Signs arbitrary data bytes using the Address key context, validated by a JSON schema ID.
+   * This is suitable for challenge/response style authentication payloads.
+   */
+  async signChallengeBytes(
+    account: number,
+    addressIndex: number,
+    data: Uint8Array,
+    encoding: Encoding = Encoding.NONE,
+    derivationType: BIP32DerivationType = BIP32DerivationType.Peikert
+  ): Promise<Uint8Array> {
+    // Delegates to underlying API's signData with schema validation
+    // API expects: (rootKey, keyContext, account, index, data, schemaId, derivationType)
+
+    const metadata: SignMetadata = { encoding: encoding, schema: authScema }
+
+    return await this.cryptoService.signData(
+      this.rootKey,
+      KeyContext.Address,
+      account,
+      addressIndex,
+      data,
+      metadata,
+      derivationType
+    )
   }
 }
 

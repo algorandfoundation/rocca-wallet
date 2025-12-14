@@ -31,6 +31,10 @@ import 'react-native-get-random-values'
 // Import new wallet API
 import 'hmd2v-xhd-wallet-api'
 
+// WebRTC globals for Liquid Auth (polyfill via react-native-webrtc)
+import { registerGlobals } from 'react-native-webrtc'
+registerGlobals()
+
 //Used to decode base64 in sub-modules like openID4Vp, or any other decoder
 import { decode, encode } from 'base-64'
 

@@ -1,5 +1,5 @@
 import { getHDWalletRootKey, hasHDWalletKey } from './hdWalletKeychain'
-import { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
+import { encodeAddress, HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import { loadMnemonic } from './keychain'
 
 /**
@@ -29,10 +29,8 @@ export const createAlgorandHDWalletService = async (
 
     if (mnemonic) {
       // Create HD wallet service from mnemonic (will regenerate root key)
-      // Convert mnemonic to seed/rootKey before passing to HDWalletService
-      // Example: const rootKey = await createRootKeyFromMnemonicAsync(mnemonic)
-      // return new HDWalletService(rootKey)
-      throw new Error('Pass Uint8Array rootKey to HDWalletService, not mnemonic string')
+      // Use convenience constructor that derives the root key internally
+      return await HDWalletService.fromMnemonic(mnemonic)
     }
 
     // No HD wallet key or mnemonic available
@@ -67,7 +65,7 @@ export const generateAlgorandAddress = async (
     // Generate Algorand address using BIP44 path
     const address = await hdWallet.generateAlgorandAddressKey(account, addressIndex)
     // Convert Uint8Array to string (e.g., base64 or hex) before returning
-    return Buffer.from(address).toString('hex')
+    return encodeAddress(address)
   } catch (error) {
     // Failed to generate address
     return null
@@ -102,44 +100,13 @@ export const generateAlgorandAddresses = async (
     for (let i = 0; i < count; i++) {
       const addressIndex = startIndex + i
       const address = await hdWallet.generateAlgorandAddressKey(account, addressIndex)
-      addresses.push(Buffer.from(address).toString('hex'))
+      addresses.push(encodeAddress(address))
     }
 
     return addresses
   } catch (error) {
     // Failed to generate addresses
     return []
-  }
-}
-
-/**
- * Generates a signing key for transactions
- * @param account Account index (default: 0)
- * @param addressIndex Address index (default: 0)
- * @param title Optional title for biometric prompt
- * @param description Optional description for biometric prompt
- * @returns Private key as Uint8Array, or null if unavailable
- */
-export const generateAlgorandSigningKey = async (
-  account: number = 0,
-  addressIndex: number = 0,
-  title?: string,
-  description?: string
-): Promise<Uint8Array | null> => {
-  try {
-    const hdWallet = await createAlgorandHDWalletService(title, description)
-
-    if (!hdWallet) {
-      return null
-    }
-
-    // Generate signing key using BIP44 path (reuse address key for now)
-    // If a dedicated signing key method is needed, implement in HDWalletService
-    const signingKey = await hdWallet.generateAlgorandAddressKey(account, addressIndex)
-    return signingKey
-  } catch (error) {
-    // Failed to generate signing key
-    return null
   }
 }
 
