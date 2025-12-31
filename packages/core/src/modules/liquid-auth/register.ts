@@ -127,3 +127,63 @@ export async function submitAttestationResponse(
   const body = await res.text()
   return { ok: res.ok, status: res.status, body }
 }
+
+// High-level flow to build and submit an attestation response.
+// This encapsulates: request options -> sign liquid challenge -> build credential -> submit.
+export async function runAttestationFlow(params: {
+  baseUrl: string
+  userAgent: string
+  originHost: string
+  dp256PublicKey: Uint8Array
+  algorandAddress: string
+  algorandPublicKeyBytes: Uint8Array
+  requestId: string
+  device?: string
+  requestOptions: AttestationRequestOptions
+  signAlgorandChallenge: (challenge: Uint8Array) => Promise<Uint8Array>
+}): Promise<{ ok: boolean; status: number; body: string; credential: any; encodedOptions: any }> {
+  const {
+    baseUrl,
+    userAgent,
+    originHost,
+    dp256PublicKey,
+    algorandAddress,
+    algorandPublicKeyBytes,
+    requestId,
+    device = 'iPhone',
+    requestOptions,
+    signAlgorandChallenge,
+  } = params
+
+  const encodedOptions = await requestAttestationOptions(baseUrl, userAgent, requestOptions)
+
+  const challenge: Uint8Array = typeof encodedOptions.challenge === 'string'
+    ? fromBase64Url(encodedOptions.challenge)
+    : encodedOptions.challenge
+
+  const signatureBytes = await signAlgorandChallenge(challenge)
+
+  const { credential } = buildRegistrationCredential({
+    encodedOptions,
+    originHost,
+    dp256PublicKey,
+    algorandAddress,
+    algorandPublicKeyBytes,
+    requestId,
+    signatureBytes,
+  })
+
+  // Attach the client extension here for convenience when using this flow directly
+  credential.clientExtensionResults = {
+    liquid: {
+      type: 'algorand',
+      requestId,
+      address: algorandAddress,
+      signature: toBase64URL(signatureBytes),
+      device,
+    },
+  }
+
+  const { ok, status, body } = await submitAttestationResponse(baseUrl, userAgent, credential)
+  return { ok, status, body, credential, encodedOptions }
+}

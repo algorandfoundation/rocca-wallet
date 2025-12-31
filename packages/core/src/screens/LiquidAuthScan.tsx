@@ -11,28 +11,15 @@ import { DeterministicP256 } from '@algorandfoundation/dp256'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import { parseLiquidAuthURI } from '../utils/parsers'
 
-import { signal } from '@algorandfoundation/liquid-client/'
-import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/lib/encoding'
+import * as signal from '../modules/liquid-auth/signal'
 import { encodeAddress } from '../modules/hd-wallet/hdWalletUtils'
-import {
-  requestAttestationOptions,
-  buildRegistrationCredential,
-  submitAttestationResponse,
-} from '../modules/liquid-auth/register'
+import { runAttestationFlow } from '../modules/liquid-auth/register'
 import type { AttestationRequestOptions } from '../modules/liquid-auth/register'
-import {
-  requestAssertionOptions,
-  buildAssertionCredential,
-  submitAssertionResponse,
-} from '../modules/liquid-auth/assertion'
-import { sha256 } from '@noble/hashes/sha2'
+import { runAssertionFlow } from '../modules/liquid-auth/assertion'
+import { bifoldLoggerInstance as logger } from '../services/bifoldLogger'
 // import DeviceInfo from 'react-native-device-info'
 
-type Props = StackScreenProps<DeliveryStackParams, Screens.LiquidAuth>
-
-// TURN credentials (aligns with iOS setup)
-const NODELY_TURN_USERNAME = 'liquid-auth'
-const NODELY_TURN_CREDENTIAL = 'sqmcP4MiTKMT4TGEDSk9jgHY'
+type Props = StackScreenProps<DeliveryStackParams, Screens.LiquidAuthScan>
 
 type ProgressPhase =
   | 'idle'
@@ -44,16 +31,14 @@ type ProgressPhase =
   | 'connected'
   | 'failed'
 
-const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
+const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   const { uri } = route.params
   const { t } = useTranslation()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
   const [address, setAddress] = useState<string | undefined>()
-  const [dp256PubLen, setDp256PubLen] = useState<number | undefined>()
   const [dp256PublicKey, setDp256PublicKey] = useState<Uint8Array | undefined>()
-  const [dp256SigLen, setDp256SigLen] = useState<number | undefined>()
   // TODO: re-derive on-the-fly as needed in both registrate and authenticate flows
   const [dp256PrivateKey, setDp256PrivateKey] = useState<any | null>(null)
   const [origin, setOrigin] = useState<string | undefined>()
@@ -127,7 +112,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
             const parsed = parseLiquidAuthURI(uri)
             if (!parsed) {
               if (mounted) {
-                setError(t('LiquidAuth.InvalidURI'))
+                setError(t('LiquidAuthScan.InvalidURI'))
                 setLoading(false)
               }
               return
@@ -139,28 +124,21 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
             // Generate domain-specific passkey keypair and sample signature
             const privateKey = await dp256.genDomainSpecificKeyPair(derivedKey, parsed.origin, userHandle)
             const publicKeyBytes = dp256.getPurePKBytes(privateKey)
-            const payload = new TextEncoder().encode('liquid-auth bootstrap')
-            const signature = dp256.signWithDomainSpecificKeyPair(privateKey, payload)
 
             // console.log("signature")
 
             if (mounted) {
-              setDp256PubLen(publicKeyBytes.length)
               setDp256PublicKey(publicKeyBytes)
-              setDp256SigLen(signature.length)
               setDp256PrivateKey(privateKey)
             }
 
-            // Initialize SignalClient with a valid scheme (required by fetch in attestation)
+            // Initialize SignalClient via wrapper
             const baseUrl = parsed.origin.startsWith('http') ? parsed.origin : `https://${parsed.origin}`
-            const client = new signal.SignalClient(baseUrl, { autoConnect: true })
-
-            // mark link readiness when server acknowledges link
-            client.on('link', () => {
-              // console.log('[SignalClient] link event acknowledged')
-              setLinkReady(true)
-              // if we were showing linking, revert to idle until user registers
-              if (progress === 'linking') setProgress('idle')
+            const client = signal.createSignalClient(baseUrl, {
+              onLink: () => {
+                setLinkReady(true)
+                if (progress === 'linking') setProgress('idle')
+              },
             })
             setSignalClient(client)
 
@@ -170,7 +148,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
                 // console.log('[SignalClient] pre-linking request on load', parsed.requestId)
                 setProgress('linking')
                 setLinkReady(false)
-                await client.link(parsed.requestId)
+                await signal.preLink(client, parsed.requestId)
                 // console.log('[SignalClient] pre-link requested')
                 // linkReady will be set on 'link' event or grace timeout
               }
@@ -205,6 +183,13 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
       const baseUrl = `https://${origin}`
       const publicKeyBytes: Uint8Array = await hdWalletService.generateAlgorandAddressKey(0, 0)
       const algorandAddress = encodeAddress(publicKeyBytes)
+      logger.info('[LiquidAuth][Scan] Attestation start', {
+        baseUrl,
+        origin,
+        requestId,
+        algorandAddress,
+        linkReady,
+      })
 
       // Use a distinct registering phase to avoid bouncing back to "Preparing keys…"
       setProgress('registering')
@@ -214,40 +199,20 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
         authenticatorSelection: { userVerification: 'required' },
         extensions: { liquid: true },
       }
-      // TODO: customize user-agent string with device info
       const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
-      const encodedOptions = await requestAttestationOptions(baseUrl, userAgent, requestOptions)
-
-      // Prepare PublicKeyCredentialCreationOptions
-      const options: any = { ...encodedOptions }
-      options.user = options.user || {}
-      // Generate Algorand address public key bytes and encoded address on the fly
-      options.user.id = publicKeyBytes
-      options.user.name = algorandAddress
-      options.user.displayName = 'Rocca Mobile Wallet'
-      options.challenge = fromBase64Url(options.challenge)
-      if (options.excludeCredentials) {
-        for (const cred of options.excludeCredentials) {
-          cred.id = fromBase64Url(cred.id)
-        }
-      }
-
-      // Sign challenge using Algorand HD wallet key
-      const challenge: Uint8Array = options.challenge
-      const sigBytes = await hdWalletService.signChallengeBytes(0, 0, challenge)
-      if (!dp256PublicKey || dp256PublicKey.length === 0)
-        throw new Error('Passkey not initialized: dp256 public key unavailable')
-      const { credential } = buildRegistrationCredential({
-        encodedOptions,
+      const { ok, status } = await runAttestationFlow({
+        baseUrl,
+        userAgent,
         originHost: origin!,
-        dp256PublicKey,
+        dp256PublicKey: dp256PublicKey!,
         algorandAddress,
         algorandPublicKeyBytes: publicKeyBytes,
         requestId,
-        signatureBytes: sigBytes,
+        device: 'iPhone',
+        requestOptions,
+        signAlgorandChallenge: (bytes) => hdWalletService.signChallengeBytes(0, 0, bytes),
       })
-
-      const { ok, status } = await submitAttestationResponse(baseUrl, userAgent, credential)
+      logger.info('[LiquidAuth][Scan] Attestation response', { ok, status })
       if (!ok) throw new Error(`Attestation failed: HTTP ${status}`)
 
       // Cooldown to allow server to finalize session before starting peer
@@ -255,6 +220,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
 
       // Ensure link is acknowledged before starting peer
       if (!linkReady && signalClient) {
+        logger.debug('[LiquidAuth][Scan] Link not ready after attestation; waiting up to 2s for link event')
         setProgress('linking')
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error('Link not ready')), 2000)
@@ -267,6 +233,7 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
         setProgress('idle')
       }
     } catch (e) {
+      logger.error('[LiquidAuth][Scan] Attestation error', { error: e as unknown as Record<string, unknown> })
       setError((e as Error).message)
       setProgress('failed')
     }
@@ -289,52 +256,24 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
       return
     }
     isStartingPeerRef.current = true
+    logger.debug('[LiquidAuth][Scan] Starting peer', { reqId, origin, linkReady })
     setProgress('starting-peer')
 
-    // console.log('[SignalClient] starting peer')
-    client
-      .peer(reqId, 'answer', {
-        iceServers: [
-          {
-            urls: [
-              'stun:stun.l.google.com:19302',
-              'stun:stun1.l.google.com:19302',
-              'stun:stun2.l.google.com:19302',
-              'stun:stun3.l.google.com:19302',
-              'stun:stun4.l.google.com:19302',
-            ],
-          },
-          {
-            urls: [
-              'turn:global.turn.nodely.network:80?transport=tcp',
-              'turns:global.turn.nodely.network:443?transport=tcp',
-              'turn:eu.turn.nodely.io:80?transport=tcp',
-              'turns:eu.turn.nodely.io:443?transport=tcp',
-              'turn:us.turn.nodely.io:80?transport=tcp',
-              'turns:us.turn.nodely.io:443?transport=tcp',
-            ],
-            username: NODELY_TURN_USERNAME,
-            credential: NODELY_TURN_CREDENTIAL,
-          },
-        ],
-        iceCandidatePoolSize: 10,
-      })
-      .then((dataChannel) => {
-        setProgress('connected')
-        dataChannel.onmessage = (event: MessageEvent) => {
-          try {
-            const msg = typeof event.data === 'string' ? event.data : JSON.stringify(event.data)
-            setLastSignalMessage(msg)
-          } catch {
-            setLastSignalMessage('[unreadable message]')
-          }
-        }
-      })
-      .catch((err) => {
-        const message = err instanceof Error ? err.message : String(err)
-        setSignalError(message)
-        setProgress('failed')
-        // No auto-retry: let the flow settle, user can re-attempt
+    signal
+      .startPeer(client, reqId, {
+        onConnected: () => {
+          logger.info('[LiquidAuth][Scan] Peer connected')
+          setProgress('connected')
+        },
+        onMessage: (m) => {
+          logger.debug('[LiquidAuth][Scan] Signal message', { m })
+          setLastSignalMessage(m)
+        },
+        onError: (e) => {
+          logger.error('[LiquidAuth][Scan] Signal error', { error: e as unknown as Record<string, unknown> })
+          setSignalError(e)
+          setProgress('failed')
+        },
       })
       .finally(() => {
         isStartingPeerRef.current = false
@@ -348,58 +287,34 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
       const baseUrl = `https://${origin}`
       const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
 
-      // Ensure link is acknowledged before auth
-      // if (!linkReady && signalClient) {
-      //   setProgress('linking')
-      //   await new Promise<void>((resolve, reject) => {
-      //     const timeout = setTimeout(() => reject(new Error('Link not ready')), 2000)
-      //     const handler = () => { clearTimeout(timeout); resolve() }
-      //     signalClient.once?.('link', handler as any)
-      //   })
-      //   setProgress('idle')
-      // }
+
       if (!dp256PrivateKey) throw new Error('Passkey not initialized: dp256 private key unavailable')
 
       const signingPrivateKey = dp256PrivateKey
       const dp256 = new DeterministicP256()
-
-      // Compute credentialId from dp256 public key
-      const credId = toBase64URL(sha256(dp256PublicKey))
-
-      // Request assertion options
-      const encodedOptions = await requestAssertionOptions(baseUrl, userAgent, credId)
-
-      // Prepare Algorand signature over challenge for liquidExt
-      const challengeBytes: Uint8Array =
-        typeof encodedOptions.challenge === 'string'
-          ? fromBase64Url(encodedOptions.challenge)
-          : encodedOptions.challenge
-      const algSigBytes = await hdWalletService.signChallengeBytes(0, 0, challengeBytes)
-
-      // Build assertion credential (DER signature)
-      const { credential } = buildAssertionCredential({
-        encodedOptions,
-        originHost: origin,
+      logger.info('[LiquidAuth][Scan] Assertion start', {
+        baseUrl,
+        origin,
+        requestId,
+        address,
+        linkReady,
+      })
+      const { ok, status } = await runAssertionFlow({
+        baseUrl,
+        userAgent,
+        originHost: origin!,
+        dp256PublicKey: dp256PublicKey!,
         dp256Sign: (payload: Uint8Array) => dp256.signWithDomainSpecificKeyPair(signingPrivateKey, payload),
         toDer: (raw: Uint8Array) => dp256.rawToDER(raw),
-        dp256PublicKey,
-        algorandAddress: address!,
-        requestId,
-        algorandSignatureBytes: algSigBytes,
-        userHandle: address!,
-      })
-
-      const liquidExt = {
-        type: 'algorand',
-        requestId,
         address: address!,
-        signature: toBase64URL(algSigBytes),
+        requestId,
         device: 'iPhone',
-      }
-
-      const { ok, status } = await submitAssertionResponse(baseUrl, userAgent, credential, liquidExt)
+        signAlgorandChallenge: (bytes) => hdWalletService.signChallengeBytes(0, 0, bytes),
+      })
+      logger.info('[LiquidAuth][Scan] Assertion response', { ok, status })
       if (!ok) throw new Error(`Assertion failed: HTTP ${status}`)
     } catch (e) {
+      logger.error('[LiquidAuth][Scan] Assertion error', { error: e as unknown as Record<string, unknown> })
       setError((e as Error).message)
       setProgress('failed')
       return
@@ -426,20 +341,20 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
         {progress === 'preparing-keys'
           ? 'Preparing keys…'
           : progress === 'linking'
-          ? 'Linking…'
-          : progress === 'registering'
-          ? 'Registering…'
-          : progress === 'starting-peer'
-          ? 'Starting peer…'
-          : progress === 'connecting'
-          ? 'Connecting…'
-          : progress === 'connected'
-          ? 'Connected.'
-          : progress === 'failed'
-          ? 'Connection failed.'
-          : loading
-          ? 'Preparing keys…'
-          : ''}
+            ? 'Linking…'
+            : progress === 'registering'
+              ? 'Registering…'
+              : progress === 'starting-peer'
+                ? 'Starting peer…'
+                : progress === 'connecting'
+                  ? 'Connecting…'
+                  : progress === 'connected'
+                    ? 'Connected.'
+                    : progress === 'failed'
+                      ? 'Connection failed.'
+                      : loading
+                        ? 'Preparing keys…'
+                        : ''}
       </Text>
       {loading ? null : (
         <>
@@ -448,14 +363,6 @@ const LiquidAuth: React.FC<Props> = ({ route, navigation }) => {
           ) : (
             <Text style={styles.meta}>Algorand Address: unavailable</Text>
           )}
-          {typeof dp256PubLen === 'number' ? (
-            <Text style={styles.meta}>Passkey P-256 Public Key Length: {dp256PubLen} bytes</Text>
-          ) : (
-            <Text style={styles.meta}>Passkey P-256: unavailable</Text>
-          )}
-          {typeof dp256SigLen === 'number' ? (
-            <Text style={styles.meta}>Sample Signature Length: {dp256SigLen} bytes</Text>
-          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </>
       )}
@@ -507,4 +414,4 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: '#007AFF', fontSize: 16, fontWeight: '600' },
 })
 
-export default LiquidAuth
+export default LiquidAuthScan

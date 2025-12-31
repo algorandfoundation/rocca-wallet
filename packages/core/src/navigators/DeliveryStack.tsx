@@ -14,7 +14,7 @@ import OpenIDProofPresentation from '../modules/openid/screens/OpenIDProofPresen
 import { TOKENS, useServices } from '../container-api'
 import OpenIDCredentialOffer from '../modules/openid/screens/OpenIDCredentialOffer'
 import OpenIDProofCredentialSelect from '../modules/openid/screens/OpenIDProofChangeCredential'
-import LiquidAuth from '../screens/LiquidAuth'
+import LiquidAuthScan from '../screens/LiquidAuthScan'
 
 const DeliveryStack: React.FC = () => {
   const Stack = createStackNavigator<DeliveryStackParams>()
@@ -38,11 +38,11 @@ const DeliveryStack: React.FC = () => {
     >
       <Stack.Screen name={Screens.Connection} component={Connection} options={{ ...defaultStackOptions }} />
       <Stack.Screen
-        name={Screens.LiquidAuth}
-        component={LiquidAuth}
+        name={Screens.LiquidAuthScan}
+        component={LiquidAuthScan}
         options={{
           title: t('Screens.LiquidAuth'),
-          ...ScreenOptionsDictionary[Screens.LiquidAuth],
+          ...ScreenOptionsDictionary[Screens.LiquidAuthScan],
         }}
       />
       <Stack.Screen

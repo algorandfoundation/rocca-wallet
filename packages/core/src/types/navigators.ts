@@ -64,7 +64,8 @@ export enum Screens {
   ConfigureMediator = 'Configure Mediator',
   SetMnemonics = 'Set Mnemonics',
   RecoveryPhrase = 'Recovery Phrase',
-  LiquidAuth = 'Liquid Auth',
+  LiquidAuthScan = 'Liquid Auth Scan',
+  LiquidAuthSettings = 'Liquid Auth Settings',
 }
 
 export enum Stacks {
@@ -183,6 +184,7 @@ export type SettingStackParams = {
   [Screens.HistorySettings]: undefined
   [Screens.AutoLock]: undefined
   [Screens.ConfigureMediator]: { scannedMediatorUri: string } | undefined
+  [Screens.LiquidAuthSettings]: undefined
 }
 
 export type NotificationStackParams = {
@@ -204,7 +206,7 @@ export type DeliveryStackParams = {
     openIDUri?: string
     openIDPresentationUri?: string
   }
-  [Screens.LiquidAuth]: { uri: string }
+  [Screens.LiquidAuthScan]: { uri: string }
   [Screens.MobileVerifierLoading]: { proofId: string; connectionId: string }
   [Screens.ProofDetails]: { recordId: string }
   [Screens.CredentialOffer]: { credentialId: string }

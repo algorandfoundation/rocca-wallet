@@ -117,3 +117,66 @@ export async function submitAssertionResponse(
   const body = await res.text()
   return { ok: res.ok, status: res.status, body }
 }
+
+// High-level flow to build and submit an assertion response.
+// This encapsulates: request options -> sign liquid challenge -> build credential -> submit.
+export async function runAssertionFlow(params: {
+  baseUrl: string
+  userAgent: string
+  originHost: string
+  dp256PublicKey: Uint8Array
+  dp256Sign: (payload: Uint8Array) => Uint8Array
+  toDer: (rawSig: Uint8Array) => Uint8Array
+  address: string
+  requestId: string
+  device?: string
+  signAlgorandChallenge: (challenge: Uint8Array) => Promise<Uint8Array>
+}): Promise<{ ok: boolean; status: number; body: string; credential: any }> {
+  const {
+    baseUrl,
+    userAgent,
+    originHost,
+    dp256PublicKey,
+    dp256Sign,
+    toDer,
+    address,
+    requestId,
+    device = 'iPhone',
+    signAlgorandChallenge,
+  } = params
+
+  // Compute credentialId from dp256 public key
+  const credId = toBase64URL(sha256(dp256PublicKey))
+
+  // Request assertion options
+  const encodedOptions = await requestAssertionOptions(baseUrl, userAgent, credId)
+
+  // Prepare Algorand signature over challenge for liquid extension
+  const challengeBytes: Uint8Array =
+    typeof encodedOptions.challenge === 'string' ? fromBase64Url(encodedOptions.challenge) : encodedOptions.challenge
+  const algSigBytes = await signAlgorandChallenge(challengeBytes)
+
+  // Build assertion credential (DER signature)
+  const { credential } = buildAssertionCredential({
+    encodedOptions,
+    originHost,
+    dp256Sign,
+    toDer,
+    dp256PublicKey,
+    algorandAddress: address,
+    requestId,
+    algorandSignatureBytes: algSigBytes,
+    userHandle: address,
+  })
+
+  const liquidExt = {
+    type: 'algorand',
+    requestId,
+    address,
+    signature: toBase64URL(algSigBytes),
+    device,
+  }
+
+  const { ok, status, body } = await submitAssertionResponse(baseUrl, userAgent, credential, liquidExt)
+  return { ok, status, body, credential }
+}

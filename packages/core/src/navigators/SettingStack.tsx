@@ -17,6 +17,7 @@ import Tours from '../screens/Tours'
 import AutoLock from '../screens/AutoLock'
 import ConfigureMediator from '../screens/ConfigureMediator'
 import PINChangeSuccessScreen from '../screens/PINChangeSuccess'
+import LiquidAuthSettings from '../screens/LiquidAuthSettings'
 import { Screens, SettingStackParams } from '../types/navigators'
 import { testIdWithKey } from '../utils/testable'
 
@@ -138,6 +139,15 @@ const SettingStack: React.FC = () => {
           title: t('RecoveryPhrase.Title'),
           headerBackTestID: testIdWithKey('Back'),
           ...ScreenOptionsDictionary[Screens.RecoveryPhrase],
+        }}
+      />
+      <Stack.Screen
+        name={Screens.LiquidAuthSettings}
+        component={LiquidAuthSettings}
+        options={{
+          title: t('Screens.LiquidAuthSettings'),
+          headerBackTestID: testIdWithKey('Back'),
+          ...ScreenOptionsDictionary[Screens.LiquidAuthSettings],
         }}
       />
       <Stack.Screen

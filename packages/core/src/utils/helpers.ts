@@ -1085,7 +1085,7 @@ export const connectFromScanOrDeepLink = async (
   try {
     if (isLiquidAuthURI(uri)) {
       navigation.navigate(Stacks.ConnectionStack as any, {
-        screen: Screens.LiquidAuth,
+        screen: Screens.LiquidAuthScan,
         params: { uri },
       })
 
