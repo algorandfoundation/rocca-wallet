@@ -41,7 +41,7 @@ const DeliveryStack: React.FC = () => {
         name={Screens.LiquidAuthScan}
         component={LiquidAuthScan}
         options={{
-          title: t('Screens.LiquidAuth'),
+          title: t('Screens.LiquidAuthScan'),
           ...ScreenOptionsDictionary[Screens.LiquidAuthScan],
         }}
       />

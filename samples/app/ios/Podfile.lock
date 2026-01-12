@@ -924,6 +924,8 @@ PODS:
     - react-native-config/App (= 1.5.10)
   - react-native-config/App (1.5.10):
     - React-Core
+  - react-native-cookies (6.2.1):
+    - React-Core
   - react-native-encrypted-storage (4.0.3):
     - React-Core
   - react-native-get-random-values (1.11.0):
@@ -1204,6 +1206,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - react-native-config (from `../node_modules/react-native-config`)
+  - "react-native-cookies (from `../node_modules/@react-native-cookies/cookies`)"
   - react-native-encrypted-storage (from `../node_modules/react-native-encrypted-storage`)
   - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
@@ -1337,6 +1340,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   react-native-config:
     :path: "../node_modules/react-native-config"
+  react-native-cookies:
+    :path: "../node_modules/@react-native-cookies/cookies"
   react-native-encrypted-storage:
     :path: "../node_modules/react-native-encrypted-storage"
   react-native-get-random-values:
@@ -1470,6 +1475,7 @@ SPEC CHECKSUMS:
   React-logger: 6c1170f7bc315878ef4bd3b918e09130cf632798
   React-Mapbuffer: 41c166b84fc479afc78097cd51404109ec9edf68
   react-native-config: a30e0b6c5185dad35bdf45011d34bae23c8ea46c
+  react-native-cookies: f54fcded06bb0cda05c11d86788020b43528a26c
   react-native-encrypted-storage: db300a3f2f0aba1e818417c1c0a6be549038deb7
   react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-netinfo: 9af975c142e5673d643093aa5afdfa26f46b71b4

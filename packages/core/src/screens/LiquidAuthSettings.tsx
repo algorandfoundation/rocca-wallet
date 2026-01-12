@@ -25,7 +25,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const { t } = useTranslation()
   const { ColorPalette, TextTheme } = useTheme()
 
-  const [backendUrl, setBackendUrl] = useState<string>('https://debug.liquidauth.com')
+  const [backendUrl, setBackendUrl] = useState<string>('https://beetle-never.ngrok-free.app')//('https://debug.liquidauth.com')
   const [pawnEndpoint, setPawnEndpoint] = useState<string>("https://worm-different.ngrok.dev")
   const [requestId, setRequestId] = useState<string>("")
   // Helper to fetch requestId from Pawn Endpoint
@@ -105,7 +105,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     },
   })
 
-  // Initialize wallet, dp256, and pre-link with server using hardcoded URL/requestId
+  // Initialize wallet and dp256. SignalClient will be created lazily after
+  // attestation/assertion so that it can reuse the established HTTP session.
   useEffect(() => {
     let mounted = true
     const run = async () => {
@@ -167,27 +168,9 @@ const LiquidAuthSettings: React.FC<Props> = () => {
             setDp256PrivateKey(privateKey)
             console.log('[LiquidAuth][DEBUG] dp256 public key:', publicKeyBytes)
           }
-          // Initialize SignalClient
-          const baseUrl = backendUrl
-          const client = signal.createSignalClient(baseUrl, {
-            onLink: () => {
-              setLinkReady(true)
-              if (progress === 'linking') setProgress('idle')
-              console.log('[LiquidAuth][DEBUG] SignalClient linked')
-            },
-          })
-          setSignalClient(client)
-          // Pre-link
-          try {
-            setProgress('linking')
-            setLinkReady(false)
-            await signal.preLink(client, requestId)
-            console.log('[LiquidAuth][DEBUG] Pre-link successful')
-          } catch (err) {
-            setProgress('failed')
-            setLinkReady(false)
-            console.log('[LiquidAuth][DEBUG] Pre-link failed', err)
-          }
+          // SignalClient is not created here; we delay it until after
+          // attestation/assertion so that the HTTP session (connect.sid)
+          // is established and can be forwarded to the signaling server.
         }
       } catch (e) {
         setError((e as Error).message)
@@ -200,9 +183,14 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     }
   }, [backendUrl])
 
-  const startSignalFlow = React.useCallback((client: signal.SignalClient, reqId: string) => {
+  const startSignalFlow = React.useCallback(async (client: signal.SignalClient, reqId: string) => {
     if (isStartingPeerRef.current) return
     isStartingPeerRef.current = true
+
+    console.log('[LiquidAuth][DEBUG] startSignalFlow: Starting peer directly (no preLink)', { reqId })
+    // Backend (Pawn) already linked when it created requestId with peer(..., 'offer')
+    // Mobile just needs to call peer(..., 'answer') without additional link()
+
     setProgress('starting-peer')
     signal
       .startPeer(client, reqId, {
@@ -262,16 +250,20 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       console.log('[LiquidAuth][DEBUG] Register: Attestation response', { ok, status })
       if (!ok) throw new Error(`Attestation failed: HTTP ${status}`)
       await new Promise((r) => setTimeout(r, 600))
-      if (!linkReady && signalClient) {
-        console.log('[LiquidAuth][DEBUG] Register: Link not ready after attestation; brief wait')
-        setProgress('linking')
-        await new Promise((r) => setTimeout(r, 500))
-        setProgress('idle')
-      }
-      if (signalClient) {
-        console.log('[LiquidAuth][DEBUG] Register: Starting peer post-attestation')
-        startSignalFlow(signalClient, reqId)
-      }
+
+      // Create SignalClient lazily after attestation so that it can
+      // reuse the HTTP session (connect.sid) established above.
+      console.log('[LiquidAuth][DEBUG] Register: Creating SignalClient post-attestation')
+      const client = signal.createSignalClient(baseUrl, {
+        onLink: () => {
+          setLinkReady(true)
+          if (progress === 'linking') setProgress('idle')
+          console.log('[LiquidAuth][DEBUG] SignalClient linked (register)')
+        },
+      })
+      setSignalClient(client)
+      console.log('[LiquidAuth][DEBUG] Register: Starting peer post-attestation')
+      await startSignalFlow(client, reqId)
     } catch (e) {
       logger.error('[LiquidAuth][Settings] Attestation error', { error: e as unknown as Record<string, unknown> })
       setError((e as Error).message)
@@ -314,16 +306,18 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       console.log('[LiquidAuth][DEBUG] Authenticate: Assertion response', { ok, status })
       if (!ok) throw new Error(`Assertion failed: HTTP ${status}`)
       await new Promise((r) => setTimeout(r, 600))
-      if (!linkReady && signalClient) {
-        console.log('[LiquidAuth][DEBUG] Authenticate: Link not ready after assertion; brief wait')
-        setProgress('linking')
-        await new Promise((r) => setTimeout(r, 500))
-        setProgress('idle')
-      }
-      if (signalClient) {
-        console.log('[LiquidAuth][DEBUG] Authenticate: Starting peer post-assertion')
-        startSignalFlow(signalClient, reqId)
-      }
+
+      console.log('[LiquidAuth][DEBUG] Authenticate: Creating SignalClient post-assertion')
+      const client = signal.createSignalClient(baseUrl, {
+        onLink: () => {
+          setLinkReady(true)
+          if (progress === 'linking') setProgress('idle')
+          console.log('[LiquidAuth][DEBUG] SignalClient linked (authenticate)')
+        },
+      })
+      setSignalClient(client)
+      console.log('[LiquidAuth][DEBUG] Authenticate: Starting peer post-assertion')
+      await startSignalFlow(client, reqId)
     } catch (e) {
       logger.error('[LiquidAuth][Settings] Assertion error', { error: e as unknown as Record<string, unknown> })
       setError((e as Error).message)
@@ -375,8 +369,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         <View style={styles.actions}>
           <TouchableOpacity
             onPress={onRegister}
-            disabled={!!loading || !linkReady}
-            style={[styles.button, loading ? styles.buttonDisabled : !linkReady ? styles.buttonDisabled : undefined]}
+            disabled={!!loading}
+            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
             accessibilityLabel="Register"
             testID="LiquidAuthRegisterButton"
           >

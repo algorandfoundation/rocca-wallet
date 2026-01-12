@@ -1,6 +1,7 @@
 import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/lib/encoding'
 import { sha256 } from '@noble/hashes/sha2'
 import { buildAuthenticatorData, buildAttestationObject, getAttestedCredentialData } from './cbor'
+import { captureConnectSid, syncConnectSidFromCookies } from './sessionCookie'
 
 export type AttestationRequestOptions = {
   username: string
@@ -22,6 +23,14 @@ export async function requestAttestationOptions(
     },
     body: JSON.stringify(requestOptions),
   })
+  // Capture session cookie if present so we can share it with SignalClient
+  try {
+    const setCookie = res.headers.get('set-cookie')
+    console.log('[LiquidAuth][DEBUG] Attestation request Set-Cookie header:', setCookie)
+    captureConnectSid(setCookie)
+  } catch {
+    // ignore
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`requestAttestationOptions failed: HTTP ${res.status} ${text}`)
@@ -124,6 +133,14 @@ export async function submitAttestationResponse(
     },
     body: JSON.stringify(credential),
   })
+  // Capture session cookie if present on response
+  try {
+    const setCookie = res.headers.get('set-cookie')
+    console.log('[LiquidAuth][DEBUG] Attestation response Set-Cookie header:', setCookie)
+    captureConnectSid(setCookie)
+  } catch {
+    // ignore
+  }
   const body = await res.text()
   return { ok: res.ok, status: res.status, body }
 }
@@ -185,5 +202,16 @@ export async function runAttestationFlow(params: {
   }
 
   const { ok, status, body } = await submitAttestationResponse(baseUrl, userAgent, credential)
+
+  // In React Native, Set-Cookie is not exposed to JS, but the
+  // native networking stack will have stored connect.sid for
+  // this baseUrl. Sync it into our in-memory store so that
+  // SignalClient can forward it on the Socket.IO handshake.
+  try {
+    await syncConnectSidFromCookies(baseUrl)
+  } catch {
+    // ignore; cookie sync is best-effort
+  }
+
   return { ok, status, body, credential, encodedOptions }
 }

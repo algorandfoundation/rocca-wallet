@@ -1,6 +1,7 @@
 import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/lib/encoding'
 import { sha256 } from '@noble/hashes/sha2'
 import { buildAuthenticatorData } from './cbor'
+import { captureConnectSid, syncConnectSidFromCookies } from './sessionCookie'
 
 export async function requestAssertionOptions(baseUrl: string, userAgent: string, credId: string): Promise<any> {
   const res = await fetch(`${baseUrl}/assertion/request/${credId}`, {
@@ -12,6 +13,14 @@ export async function requestAssertionOptions(baseUrl: string, userAgent: string
     // iOS passes { extensions: true } in the request body
     body: JSON.stringify({ extensions: true }),
   })
+  // Capture session cookie if present so we can share it with SignalClient
+  try {
+    const setCookie = res.headers.get('set-cookie')
+    console.log('[LiquidAuth][DEBUG] Assertion request Set-Cookie header:', setCookie)
+    captureConnectSid(setCookie)
+  } catch {
+    // ignore
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`requestAssertionOptions failed: HTTP ${res.status} ${text}`)
@@ -114,6 +123,14 @@ export async function submitAssertionResponse(
     },
     body: JSON.stringify(payload),
   })
+  // Capture session cookie if present on response
+  try {
+    const setCookie = res.headers.get('set-cookie')
+    console.log('[LiquidAuth][DEBUG] Assertion response Set-Cookie header:', setCookie)
+    captureConnectSid(setCookie)
+  } catch {
+    // ignore
+  }
   const body = await res.text()
   return { ok: res.ok, status: res.status, body }
 }
@@ -178,5 +195,15 @@ export async function runAssertionFlow(params: {
   }
 
   const { ok, status, body } = await submitAssertionResponse(baseUrl, userAgent, credential, liquidExt)
+
+  // Same as attestation: after assertion completes, the native
+  // cookie jar should contain connect.sid for this baseUrl.
+  // Sync it into memory so SignalClient can reuse it.
+  try {
+    await syncConnectSidFromCookies(baseUrl)
+  } catch {
+    // ignore; cookie sync is best-effort
+  }
+
   return { ok, status, body, credential }
 }
