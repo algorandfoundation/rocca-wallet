@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { StackScreenProps } from '@react-navigation/stack'
 import { useTranslation } from 'react-i18next'
-import { DeliveryStackParams, Screens } from '../types/navigators'
+import { DeliveryStackParams, Screens, Stacks } from '../types/navigators'
 import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../services/algorandHDWallet'
 import { hasHDWalletKey, generateAndStoreHDWalletKey } from '../services/hdWalletKeychain'
 import { loadMnemonic } from '../services/keychain'
-import { Stacks } from '../types/navigators'
 import { DeterministicP256 } from '@algorandfoundation/dp256'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import { parseLiquidAuthURI } from '../utils/parsers'
@@ -50,6 +49,7 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   const isStartingPeerRef = useRef(false)
   const [lastSignalMessage, setLastSignalMessage] = useState<string | undefined>()
   const [signalError, setSignalError] = useState<string | undefined>()
+  const [attemptedAction, setAttemptedAction] = useState<'register' | 'authenticate' | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -175,6 +175,7 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   }, [navigation, uri])
 
   const onRegister = async () => {
+    setAttemptedAction('register')
     if (!origin || !requestId || !hdWalletService) return
     // Proceed with registration
 
@@ -281,6 +282,7 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   }
 
   const onAuthenticate = async () => {
+    setAttemptedAction('authenticate')
     if (!origin || !requestId || !hdWalletService || !dp256PublicKey) return
 
     try {
@@ -336,27 +338,34 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
         {uri}
       </Text>
 
-      {/* Progress hint always reflects the current phase; initial loading uses Preparing keys… */}
-      <Text style={styles.hint}>
-        {progress === 'preparing-keys'
-          ? 'Preparing keys…'
-          : progress === 'linking'
-            ? 'Linking…'
-            : progress === 'registering'
-              ? 'Registering…'
-              : progress === 'starting-peer'
-                ? 'Starting peer…'
-                : progress === 'connecting'
-                  ? 'Connecting…'
-                  : progress === 'connected'
-                    ? 'Connected.'
-                    : progress === 'failed'
-                      ? 'Connection failed.'
-                      : loading
-                        ? 'Preparing keys…'
-                        : ''}
-      </Text>
-      {loading ? null : (
+      {loading ? null : attemptedAction ? (
+        <View style={styles.actions}>
+          <View style={styles.messageArea}>
+            {lastSignalMessage ? (
+              <Text style={styles.meta}>Last signal message: {lastSignalMessage}</Text>
+            ) : (
+              // Reserve space for incoming messages so layout doesn't jump
+              <Text style={styles.metaPlaceholder} />
+            )}
+          </View>
+
+          {progress === 'connected' ? (
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => navigation.getParent()?.navigate(Stacks.ConnectStack, { screen: Screens.Scan, params: { defaultToConnect: true } })}
+            >
+              <Text style={styles.primaryButtonText}>Scan again</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <Text style={styles.hint}>Waiting for data channel…</Text>
+            </View>
+          )}
+
+          {signalError ? <Text style={styles.error}>Signal error: {signalError}</Text> : null}
+        </View>
+      ) : (
         <>
           {address ? (
             <Text style={styles.meta}>Algorand Address: {address}</Text>
@@ -367,22 +376,28 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
         </>
       )}
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.primaryButton, !linkReady && styles.buttonDisabled]}
-          onPress={onRegister}
-          accessibilityRole="button"
-          disabled={!linkReady}
-        >
-          <Text style={styles.primaryButtonText}>Register</Text>
-        </TouchableOpacity>
+      {loading ? (
+        <View style={{ marginTop: 24, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : attemptedAction ? null : (
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.primaryButton, !linkReady && styles.buttonDisabled]}
+            onPress={onRegister}
+            accessibilityRole="button"
+            disabled={!linkReady}
+          >
+            <Text style={styles.primaryButtonText}>Register</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={onAuthenticate} accessibilityRole="button">
-          <Text style={styles.secondaryButtonText}>Authenticate</Text>
-        </TouchableOpacity>
-        {lastSignalMessage ? <Text style={styles.meta}>Last signal message: {lastSignalMessage}</Text> : null}
-        {signalError ? <Text style={styles.error}>Signal error: {signalError}</Text> : null}
-      </View>
+          <TouchableOpacity style={styles.secondaryButton} onPress={onAuthenticate} accessibilityRole="button">
+            <Text style={styles.secondaryButtonText}>Authenticate</Text>
+          </TouchableOpacity>
+          {lastSignalMessage ? <Text style={styles.meta}>Last signal message: {lastSignalMessage}</Text> : null}
+          {signalError ? <Text style={styles.error}>Signal error: {signalError}</Text> : null}
+        </View>
+      )}
     </View>
   )
 }
@@ -395,6 +410,8 @@ const styles = StyleSheet.create({
   actions: { marginTop: 24, gap: 12 },
   meta: { marginTop: 8, fontSize: 12, color: '#444' },
   hint: { marginTop: 8, fontSize: 12, color: '#666' },
+  messageArea: { height: 80, justifyContent: 'center' },
+  metaPlaceholder: { height: 20 },
   error: { marginTop: 8, fontSize: 12, color: '#D00' },
   primaryButton: {
     backgroundColor: '#007AFF',

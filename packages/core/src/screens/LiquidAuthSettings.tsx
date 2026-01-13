@@ -57,6 +57,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const isStartingPeerRef = useRef(false)
   const [lastSignalMessage, setLastSignalMessage] = useState<string | undefined>()
   const [signalError, setSignalError] = useState<string | undefined>()
+  
 
   const styles = StyleSheet.create({
     container: {
@@ -111,6 +112,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     let mounted = true
     const run = async () => {
       try {
+        
         setError('')
         console.log('[LiquidAuth][DEBUG] useEffect: initializing wallet and keys')
         // Ensure mnemonic / HD wallet is available
@@ -331,14 +333,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   return (
     <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
       <View>
-        <ThemedText variant="headingTwo" style={[TextTheme.headingTwo, styles.heading]}>
-          {t('Screens.LiquidAuthSettings')}
-        </ThemedText>
         <ThemedText style={[TextTheme.normal, styles.paragraph]}>
-          {t('LiquidAuthSettings.Title')}
-        </ThemedText>
-        <ThemedText style={[TextTheme.normal, styles.paragraph]}>
-          Welcome.
+          Intermezzo Pawn Endpoint:
         </ThemedText>
 
         <TextInput
@@ -353,6 +349,9 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           accessibilityLabel="Pawn Endpoint"
           testID="PawnEndpointInput"
         />
+        <ThemedText style={[TextTheme.normal, styles.paragraph]}>
+          Liquid Auth Signaling Server:
+        </ThemedText>
         <TextInput
           value={backendUrl}
           onChangeText={setBackendUrl}
@@ -367,34 +366,34 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         />
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            onPress={onRegister}
-            disabled={!!loading}
-            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
-            accessibilityLabel="Register"
-            testID="LiquidAuthRegisterButton"
-          >
-            {loading === 'register' ? (
-              <ActivityIndicator color={ColorPalette.grayscale.white} />
-            ) : (
-              <ThemedText style={{ color: ColorPalette.grayscale.white }}>Register</ThemedText>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onRegister}
+              disabled={!!loading}
+              style={[styles.button, loading ? styles.buttonDisabled : undefined]}
+              accessibilityLabel="Register"
+              testID="LiquidAuthRegisterButton"
+            >
+              {loading === 'register' ? (
+                <ActivityIndicator color={ColorPalette.grayscale.white} />
+              ) : (
+                <ThemedText style={{ color: ColorPalette.grayscale.white }}>Register</ThemedText>
+              )}
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={onAuthenticate}
-            disabled={!!loading}
-            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
-            accessibilityLabel="Authenticate"
-            testID="LiquidAuthAuthenticateButton"
-          >
-            {loading === 'authenticate' ? (
-              <ActivityIndicator color={ColorPalette.grayscale.white} />
-            ) : (
-              <ThemedText style={{ color: ColorPalette.grayscale.white }}>Authenticate</ThemedText>
-            )}
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              onPress={onAuthenticate}
+              disabled={!!loading}
+              style={[styles.button, loading ? styles.buttonDisabled : undefined]}
+              accessibilityLabel="Authenticate"
+              testID="LiquidAuthAuthenticateButton"
+            >
+              {loading === 'authenticate' ? (
+                <ActivityIndicator color={ColorPalette.grayscale.white} />
+              ) : (
+                <ThemedText style={{ color: ColorPalette.grayscale.white }}>Authenticate</ThemedText>
+              )}
+            </TouchableOpacity>
+          </View>
 
         {!!error && (
           <View style={styles.resultBox}>

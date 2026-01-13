@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, Vibration, View, useWindowDimensions } from 'react-native'
 import { OrientationType, useOrientationChange } from 'react-native-orientation-locker'
 import { Camera, Code, useCameraDevice, useCameraFormat, useCodeScanner } from 'react-native-vision-camera'
+import { useIsFocused } from '@react-navigation/native'
 
 import { QrCodeScanError } from '../../types/error'
 
@@ -67,10 +68,17 @@ const ScanCamera: React.FC<ScanCameraProps> = ({ handleCodeScan, error, enableCa
     codeTypes: ['qr'],
     onCodeScanned: onCodeScanned,
   })
+  const isFocused = useIsFocused()
+
+  useEffect(() => {
+    // Pause camera when screen is not focused to avoid black/locked camera states
+    setCameraActive((prev) => (isFocused ? true : false))
+  }, [isFocused])
   return (
     <View style={[StyleSheet.absoluteFill, { transform: [{ rotate: orientationDegrees[orientation] ?? '0deg' }] }]}>
       {device && (
         <Camera
+          key={isFocused ? 'camera-focused' : 'camera-unfocused'}
           style={StyleSheet.absoluteFill}
           device={device}
           torch={torchActive ? 'on' : 'off'}

@@ -1,7 +1,6 @@
 import { SignalClient } from '@algorandfoundation/liquid-client/lib/signal'
 export type { SignalClient } from '@algorandfoundation/liquid-client/lib/signal'
 import { getConnectSidCookieHeader } from './sessionCookie'
-import { installWebRtcDebugHooks } from './webrtcDebug'
 
 export type SignalHandlers = {
   onLink?: () => void
@@ -106,11 +105,6 @@ export async function startPeer(
     console.log('[LiquidAuth][DEBUG] Forcing SignalClient authenticated=true before peer')
       ; (client as any).authenticated = true
   }
-
-  // Ensure global WebRTC debug hooks are installed before any peer
-  // connections are created so we can see addIceCandidate and
-  // connection state transitions.
-  installWebRtcDebugHooks()
 
   // Add socket event listener for debugging
   try {
