@@ -19,6 +19,7 @@
     "start": "react-native start --reset-cache"
   },
   "dependencies": {
+    "@algorandfoundation/dp256": "^1.1.0",
     "@bifold/core": "2.10.2",
     "@bifold/oca": "2.10.2",
     "@craftzdog/react-native-buffer": "^6.1.1",
