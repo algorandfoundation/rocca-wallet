@@ -153,6 +153,7 @@
     "uuid": "~9.0.1"
   },
   "peerDependencies": {
+    "@algorandfoundation/dp256": "^1.1.0",
     "@credo-ts/anoncreds": "0.5.17",
     "@credo-ts/askar": "0.5.17",
     "@credo-ts/core": "0.5.17",
@@ -241,7 +242,6 @@
   "dependencies": {
     "@algorandfoundation/algo-models": "^0.0.8",
     "@algorandfoundation/algokit-utils": "^9.1.2",
-    "@algorandfoundation/dp256": "^1.1.0",
     "@algorandfoundation/liquid-client": "algorandfoundation/liquid-auth-js#chore/dist",
     "@noble/hashes": "^1.4.0",
     "@scure/base": "^2.0.0",

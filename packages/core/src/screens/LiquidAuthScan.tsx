@@ -7,6 +7,7 @@ import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../s
 import { hasHDWalletKey, generateAndStoreHDWalletKey } from '../services/hdWalletKeychain'
 import { loadMnemonic } from '../services/keychain'
 import { DeterministicP256 } from '@algorandfoundation/dp256'
+import { loadDp256MainKey, storeDp256MainKey } from '../services/hdWalletKeychain'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import { parseLiquidAuthURI } from '../utils/parsers'
 
@@ -100,13 +101,18 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
           if (mnemonic) {
             const dp256 = new DeterministicP256()
 
-            // Derive main key from BIP39 phrase. The default (210k) is CPU-heavy and
-            // will block the RN JS thread. Use fewer iterations in dev to keep UI responsive.
-            const salt = new TextEncoder().encode('liquid')
-            // TODO: test 210k iterations on real device performance
-            // TODO: MOVE THIS TO USER ONBOARDING/MNEMONIC ADDITION FLOW!
-            const iterations = (global as any).__DEV__ ? 10 : 210_000
-            const derivedKey = await dp256.genDerivedMainKeyWithBIP39(mnemonic, salt, iterations, 512)
+            // REQUIRE: dp256 derived main key must be present (derived at onboarding)
+            const derivedKey = await loadDp256MainKey()
+            if (!derivedKey) {
+              const msg = 'Missing dp256 derived main key. Complete onboarding.'
+              console.error('[LiquidAuth][Scan] ', msg)
+              if (mounted) {
+                setError(msg)
+                setProgress('failed')
+                setLoading(false)
+              }
+              return
+            }
 
             // Extract origin and requestId from liquid:// URI (requestId required)
             const parsed = parseLiquidAuthURI(uri)

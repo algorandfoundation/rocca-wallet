@@ -15,6 +15,7 @@ import { useOnboardingState } from '../hooks/useOnboardingState'
 import AttemptLockout from '../screens/AttemptLockout'
 import MnemonicSet from '../screens/MnemonicSet'
 import NameWallet from '../screens/NameWallet'
+import DerivationScreen from '../screens/DerivationScreen'
 import { createCarouselStyle } from '../screens/OnboardingPages'
 import PINCreate from '../screens/PINCreate'
 import PINEnter from '../screens/PINEnter'
@@ -175,6 +176,7 @@ const OnboardingStack: React.FC<OnboardingStackProps> = ({ initializeAgent, agen
         OnboardingScreen,
         CreatePINScreen,
         SetMnemonicsScreen: MnemonicSet,
+        Derivation: DerivationScreen,
         EnterPINScreen,
       }),
     [
@@ -200,6 +202,7 @@ const OnboardingStack: React.FC<OnboardingStackProps> = ({ initializeAgent, agen
       {screens.map((item) => {
         return <Stack.Screen key={item.name} {...item} />
       })}
+
     </Stack.Navigator>
   )
 }

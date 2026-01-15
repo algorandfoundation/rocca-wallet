@@ -25,6 +25,7 @@ interface ScreenComponents {
   CreatePINScreen: React.FC
   SetMnemonicsScreen: React.FC
   EnterPINScreen: React.FC
+  Derivation: React.FC
 }
 
 export const getOnboardingScreens = (
@@ -99,6 +100,16 @@ export const getOnboardingScreens = (
       title: t('Screens.SetMnemonics'),
       headerLeft: () => false,
       ...ScreenOptionsDictionary[Screens.SetMnemonics],
+    }),
+  },
+  {
+    name: Screens.Derivation,
+    component: components.Derivation,
+    options: () => ({
+      ...TransitionPresets.SlideFromRightIOS,
+      title: t('Screens.Derivation'),
+      headerLeft: () => false,
+      ...ScreenOptionsDictionary[Screens.Derivation],
     }),
   },
   {

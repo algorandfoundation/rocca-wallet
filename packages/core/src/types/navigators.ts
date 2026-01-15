@@ -64,6 +64,7 @@ export enum Screens {
   ConfigureMediator = 'Configure Mediator',
   SetMnemonics = 'Set Mnemonics',
   RecoveryPhrase = 'Recovery Phrase',
+  Derivation = 'Derivation',
   LiquidAuthScan = 'Liquid Auth Scan',
   LiquidAuthSettings = 'Liquid Auth Settings',
 }
@@ -121,6 +122,7 @@ export type OnboardingStackParams = {
   [Screens.NameWallet]: undefined
   [Screens.PushNotifications]: undefined
   [Screens.SetMnemonics]: undefined
+  [Screens.Derivation]: { mnemonic: string } | undefined
 }
 
 export type ContactStackParams = {

@@ -11,6 +11,7 @@ import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../s
 import { hasHDWalletKey, generateAndStoreHDWalletKey } from '../services/hdWalletKeychain'
 import { loadMnemonic } from '../services/keychain'
 import { DeterministicP256 } from '@algorandfoundation/dp256'
+import { loadDp256MainKey } from '../services/hdWalletKeychain'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import * as signal from '../modules/liquid-auth/signal'
 import { encodeAddress } from '../modules/hd-wallet/hdWalletUtils'
@@ -57,7 +58,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const isStartingPeerRef = useRef(false)
   const [lastSignalMessage, setLastSignalMessage] = useState<string | undefined>()
   const [signalError, setSignalError] = useState<string | undefined>()
-  
+
 
   const styles = StyleSheet.create({
     container: {
@@ -112,7 +113,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     let mounted = true
     const run = async () => {
       try {
-        
+
         setError('')
         console.log('[LiquidAuth][DEBUG] useEffect: initializing wallet and keys')
         // Ensure mnemonic / HD wallet is available
@@ -148,9 +149,18 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         const mnemonic = await loadMnemonic()
         if (mnemonic) {
           const dp256 = new DeterministicP256()
-          const salt = new TextEncoder().encode('liquid')
-          const iterations = (global as any).__DEV__ ? 10 : 210_000
-          const derivedKey = await dp256.genDerivedMainKeyWithBIP39(mnemonic, salt, iterations, 512)
+
+          // REQUIRE: dp256 derived main key must be present (derived at onboarding)
+          const derivedKey = await loadDp256MainKey()
+          if (!derivedKey) {
+            const msg = 'Missing dp256 derived main key. Complete onboarding or restore your recovery phrase.'
+            console.error('[LiquidAuth][Settings] ', msg)
+            if (mounted) {
+              setError(msg)
+              setProgress('failed')
+            }
+            return
+          }
           // Parse origin host from backendUrl without relying on global URL constructor
           const originHost = (() => {
             try {
@@ -366,34 +376,34 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         />
 
         <View style={styles.actions}>
-            <TouchableOpacity
-              onPress={onRegister}
-              disabled={!!loading}
-              style={[styles.button, loading ? styles.buttonDisabled : undefined]}
-              accessibilityLabel="Register"
-              testID="LiquidAuthRegisterButton"
-            >
-              {loading === 'register' ? (
-                <ActivityIndicator color={ColorPalette.grayscale.white} />
-              ) : (
-                <ThemedText style={{ color: ColorPalette.grayscale.white }}>Register</ThemedText>
-              )}
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onRegister}
+            disabled={!!loading}
+            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
+            accessibilityLabel="Register"
+            testID="LiquidAuthRegisterButton"
+          >
+            {loading === 'register' ? (
+              <ActivityIndicator color={ColorPalette.grayscale.white} />
+            ) : (
+              <ThemedText style={{ color: ColorPalette.grayscale.white }}>Register</ThemedText>
+            )}
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={onAuthenticate}
-              disabled={!!loading}
-              style={[styles.button, loading ? styles.buttonDisabled : undefined]}
-              accessibilityLabel="Authenticate"
-              testID="LiquidAuthAuthenticateButton"
-            >
-              {loading === 'authenticate' ? (
-                <ActivityIndicator color={ColorPalette.grayscale.white} />
-              ) : (
-                <ThemedText style={{ color: ColorPalette.grayscale.white }}>Authenticate</ThemedText>
-              )}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={onAuthenticate}
+            disabled={!!loading}
+            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
+            accessibilityLabel="Authenticate"
+            testID="LiquidAuthAuthenticateButton"
+          >
+            {loading === 'authenticate' ? (
+              <ActivityIndicator color={ColorPalette.grayscale.white} />
+            ) : (
+              <ThemedText style={{ color: ColorPalette.grayscale.white }}>Authenticate</ThemedText>
+            )}
+          </TouchableOpacity>
+        </View>
 
         {!!error && (
           <View style={styles.resultBox}>
