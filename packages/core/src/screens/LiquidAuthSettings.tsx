@@ -26,9 +26,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const { t } = useTranslation()
   const { ColorPalette, TextTheme } = useTheme()
 
-  const [backendUrl, setBackendUrl] = useState<string>('https://beetle-never.ngrok-free.app')//('https://debug.liquidauth.com')
+  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://beetle-never.ngrok-free.app')//('https://debug.liquidauth.com')
   const [pawnEndpoint, setPawnEndpoint] = useState<string>("https://worm-different.ngrok.dev")
-  const [requestId, setRequestId] = useState<string>("")
   // Helper to fetch requestId from Pawn Endpoint
   const fetchRequestId = useCallback(async () => {
     if (!pawnEndpoint) throw new Error("Pawn Endpoint is required")
@@ -40,7 +39,6 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     const data = await res.json()
     console.log('[LiquidAuth][DEBUG] Pawn Endpoint response JSON:', data)
     if (!data.requestId) throw new Error("No requestId in Pawn Endpoint response")
-    setRequestId(data.requestId)
     console.log('[LiquidAuth][DEBUG] Received requestId:', data.requestId)
     return data.requestId
   }, [pawnEndpoint])
@@ -161,13 +159,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
             }
             return
           }
-          // Parse origin host from backendUrl without relying on global URL constructor
+          // Parse origin host from liquidAuthSignalingUrl without relying on global URL constructor
           const originHost = (() => {
             try {
-              const m = backendUrl.match(/^https?:\/\/([^/]+)/i)
-              return m?.[1] ?? backendUrl
+              const m = liquidAuthSignalingUrl.match(/^https?:\/\/([^/]+)/i)
+              return m?.[1] ?? liquidAuthSignalingUrl
             } catch {
-              return backendUrl
+              return liquidAuthSignalingUrl
             }
           })()
           setOrigin(originHost)
@@ -193,7 +191,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     return () => {
       mounted = false
     }
-  }, [backendUrl])
+  }, [liquidAuthSignalingUrl])
 
   const startSignalFlow = React.useCallback(async (client: signal.SignalClient, reqId: string) => {
     if (isStartingPeerRef.current) return
@@ -204,7 +202,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     // Mobile just needs to call peer(..., 'answer') without additional link()
 
     setProgress('starting-peer')
-    signal
+    return signal
       .startPeer(client, reqId, {
         onConnected: () => {
           setProgress('connected')
@@ -232,11 +230,10 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       setProgress('registering')
       console.log('[LiquidAuth][DEBUG] Register: Fetching requestId from Pawn Endpoint')
       const reqId = await fetchRequestId()
-      setRequestId(reqId)
       console.log('[LiquidAuth][DEBUG] Register: Got requestId', reqId)
       // Add 2 second delay after fetching requestId
       await new Promise((r) => setTimeout(r, 2000))
-      const baseUrl = backendUrl
+      const baseUrl = liquidAuthSignalingUrl
       const publicKeyBytes: Uint8Array = await hdWalletService.generateAlgorandAddressKey(0, 0)
       const algorandAddress = encodeAddress(publicKeyBytes)
       console.log('[LiquidAuth][DEBUG] Register: Attestation start', { baseUrl, origin, requestId: reqId, algorandAddress, linkReady })
@@ -284,7 +281,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     } finally {
       setLoading(null)
     }
-  }, [origin, hdWalletService, dp256PublicKey, backendUrl, linkReady, signalClient, fetchRequestId, startSignalFlow])
+  }, [origin, hdWalletService, dp256PublicKey, liquidAuthSignalingUrl, linkReady, signalClient, fetchRequestId, startSignalFlow])
 
   const onAuthenticate = useCallback(async () => {
     if (!origin || !hdWalletService || !dp256PublicKey || !dp256PrivateKey || !address) return
@@ -295,11 +292,10 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       setProgress('authenticating')
       console.log('[LiquidAuth][DEBUG] Authenticate: Fetching requestId from Pawn Endpoint')
       const reqId = await fetchRequestId()
-      setRequestId(reqId)
       console.log('[LiquidAuth][DEBUG] Authenticate: Got requestId', reqId)
       // Add 2 second delay after fetching requestId
       await new Promise((r) => setTimeout(r, 2000))
-      const baseUrl = backendUrl
+      const baseUrl = liquidAuthSignalingUrl
       const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
       console.log('[LiquidAuth][DEBUG] Authenticate: Assertion start', { baseUrl, origin, requestId: reqId, address, linkReady })
       const dp256 = new DeterministicP256()
@@ -338,7 +334,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     } finally {
       setLoading(null)
     }
-  }, [origin, hdWalletService, dp256PublicKey, dp256PrivateKey, address, backendUrl, linkReady, signalClient, fetchRequestId, startSignalFlow])
+  }, [origin, hdWalletService, dp256PublicKey, dp256PrivateKey, address, liquidAuthSignalingUrl, linkReady, signalClient, fetchRequestId, startSignalFlow])
 
   return (
     <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
@@ -363,8 +359,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           Liquid Auth Signaling Server:
         </ThemedText>
         <TextInput
-          value={backendUrl}
-          onChangeText={setBackendUrl}
+          value={liquidAuthSignalingUrl}
+          onChangeText={setliquidAuthSignalingUrl}
           placeholder="https://your-backend.example.com/health"
           placeholderTextColor={ColorPalette.grayscale.mediumGrey}
           autoCapitalize="none"
@@ -372,7 +368,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           keyboardType="url"
           style={styles.input}
           accessibilityLabel="Backend URL"
-          testID="BackendUrlInput"
+          testID="liquidAuthSignalingUrlInput"
         />
 
         <View style={styles.actions}>
