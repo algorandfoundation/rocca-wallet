@@ -19,6 +19,7 @@ import { runAttestationFlow } from '../modules/liquid-auth/register'
 import type { AttestationRequestOptions } from '../modules/liquid-auth/register'
 import { runAssertionFlow } from '../modules/liquid-auth/assertion'
 import { bifoldLoggerInstance as logger } from '../services/bifoldLogger'
+import getUserAgent from '../modules/liquid-auth/userAgent'
 
 type Props = StackScreenProps<SettingStackParams, Screens.LiquidAuthSettings>
 
@@ -26,7 +27,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const { t } = useTranslation()
   const { ColorPalette, TextTheme } = useTheme()
 
-  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://beetle-never.ngrok-free.app')//('https://debug.liquidauth.com')
+  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://debug.liquidauth.com')
   const [pawnEndpoint, setPawnEndpoint] = useState<string>("https://worm-different.ngrok.dev")
   // Helper to fetch requestId from Pawn Endpoint
   const fetchRequestId = useCallback(async () => {
@@ -243,7 +244,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         authenticatorSelection: { userVerification: 'required' },
         extensions: { liquid: true },
       }
-      const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
+      const userAgent = getUserAgent()
       const { ok, status } = await runAttestationFlow({
         baseUrl,
         userAgent,
@@ -296,7 +297,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       // Add 2 second delay after fetching requestId
       await new Promise((r) => setTimeout(r, 2000))
       const baseUrl = liquidAuthSignalingUrl
-      const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
+      const userAgent = getUserAgent()
       console.log('[LiquidAuth][DEBUG] Authenticate: Assertion start', { baseUrl, origin, requestId: reqId, address, linkReady })
       const dp256 = new DeterministicP256()
       const { ok, status } = await runAssertionFlow({

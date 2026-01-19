@@ -17,7 +17,7 @@ import { runAttestationFlow } from '../modules/liquid-auth/register'
 import type { AttestationRequestOptions } from '../modules/liquid-auth/register'
 import { runAssertionFlow } from '../modules/liquid-auth/assertion'
 import { bifoldLoggerInstance as logger } from '../services/bifoldLogger'
-// import DeviceInfo from 'react-native-device-info'
+import getUserAgent from '../modules/liquid-auth/userAgent'
 
 type Props = StackScreenProps<DeliveryStackParams, Screens.LiquidAuthScan>
 
@@ -206,7 +206,9 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
         authenticatorSelection: { userVerification: 'required' },
         extensions: { liquid: true },
       }
-      const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
+      // const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
+      const userAgent = getUserAgent()
+      console.log('[LiquidAuth][Scan] Using User-Agent:', userAgent)
       const { ok, status } = await runAttestationFlow({
         baseUrl,
         userAgent,
@@ -293,8 +295,8 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
 
     try {
       const baseUrl = `https://${origin}`
-      const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
-
+      const userAgent = getUserAgent()
+      console.log('[LiquidAuth][Scan] Using User-Agent:', userAgent)
 
       if (!dp256PrivateKey) throw new Error('Passkey not initialized: dp256 private key unavailable')
 
