@@ -53,9 +53,4 @@ export function getUserAgent(appPrefix = 'liquid-auth/1.0'): string {
   return `${appPrefix} (${model}; ${name}${ver ? ' ' + ver : ''})`
 }
 
-function uncap(s: string) {
-  if (!s) return s
-  return s.charAt(0).toLowerCase() + s.slice(1)
-}
-
 export default getUserAgent

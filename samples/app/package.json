@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@algorandfoundation/dp256": "^1.1.0",
+    "@algorandfoundation/liquid-client": "file:../../algorandfoundation-liquid-client-1.0.0-canary.3.tgz",
+    "@algorandfoundation/xhd-wallet-api": "file:../../algorandfoundation-xhd-wallet-api-v2.0.0-canary.1.tgz",
     "@bifold/core": "2.10.2",
     "@bifold/oca": "2.10.2",
     "@craftzdog/react-native-buffer": "^6.1.1",
@@ -58,7 +60,6 @@
     "base-64": "~1.0.0",
     "expo": "*",
     "expo-secure-store": "*",
-    "hmd2v-xhd-wallet-api": "^1.2.0",
     "i18next": "~21.6.16",
     "lodash.flatten": "~4.4.0",
     "lodash.startcase": "~4.4.0",

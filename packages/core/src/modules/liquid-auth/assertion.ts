@@ -1,4 +1,4 @@
-import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/lib/encoding'
+import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client'
 import { sha256 } from '@noble/hashes/sha2'
 import { buildAuthenticatorData } from './cbor'
 import { captureConnectSid, syncConnectSidFromCookies } from './sessionCookie'
@@ -16,7 +16,6 @@ export async function requestAssertionOptions(baseUrl: string, userAgent: string
   // Capture session cookie if present so we can share it with SignalClient
   try {
     const setCookie = res.headers.get('set-cookie')
-    console.log('[LiquidAuth][DEBUG] Assertion request Set-Cookie header:', setCookie)
     captureConnectSid(setCookie)
   } catch {
     // ignore
@@ -126,7 +125,6 @@ export async function submitAssertionResponse(
   // Capture session cookie if present on response
   try {
     const setCookie = res.headers.get('set-cookie')
-    console.log('[LiquidAuth][DEBUG] Assertion response Set-Cookie header:', setCookie)
     captureConnectSid(setCookie)
   } catch {
     // ignore

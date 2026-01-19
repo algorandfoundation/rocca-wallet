@@ -48,7 +48,8 @@
     "GotIt": "Got it (PT-BR)",
     "Send": "Enviar",
     "Reset": "Reset (PT-BR)",
-    "ViewJSON": "View JSON Details (PT-BR)"
+    "ViewJSON": "View JSON Details (PT-BR)",
+    "Error": "Erro"
   },
   "Date": {
     "ShortFormat": "D MMM",

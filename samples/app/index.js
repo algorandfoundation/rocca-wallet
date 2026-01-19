@@ -24,12 +24,11 @@ import '@formatjs/intl-datetimeformat/locale-data/en' // locale-data for en
 import '@formatjs/intl-datetimeformat/add-all-tz' // Add ALL tz data
 import 'reflect-metadata'
 
-// Polyfills for hmd2v-xhd-wallet-api
+// Polyfills for @algorandfoundation/xhd-wallet-api
 import 'react-native-get-random-values'
-// import 'hmd2v-xhd-wallet-api/polyfills'
 
 // Import new wallet API
-import 'hmd2v-xhd-wallet-api'
+import '@algorandfoundation/xhd-wallet-api'
 
 // WebRTC globals for Liquid Auth (polyfill via react-native-webrtc)
 import { registerGlobals } from 'react-native-webrtc'

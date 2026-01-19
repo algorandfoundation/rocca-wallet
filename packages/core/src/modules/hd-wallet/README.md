@@ -83,16 +83,6 @@ const signature = await hdWallet.signAlgorandTransaction(
   prefixEncodedTx
 )
 
-// ECDH key exchange
-const sharedSecret = await hdWallet.performECDH(
-  KeyContext.Identity,
-  0, // account
-  0, // addressIndex
-  otherPartyPublicKey,
-  true // isClient
-)
-```
-
 ### Integration with Existing Wallet
 
 ```typescript

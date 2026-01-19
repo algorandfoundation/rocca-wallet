@@ -1,4 +1,4 @@
-import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/lib/encoding'
+import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/'
 import { sha256 } from '@noble/hashes/sha2'
 import { buildAuthenticatorData, buildAttestationObject, getAttestedCredentialData } from './cbor'
 import { captureConnectSid, syncConnectSidFromCookies } from './sessionCookie'
@@ -26,7 +26,6 @@ export async function requestAttestationOptions(
   // Capture session cookie if present so we can share it with SignalClient
   try {
     const setCookie = res.headers.get('set-cookie')
-    console.log('[LiquidAuth][DEBUG] Attestation request Set-Cookie header:', setCookie)
     captureConnectSid(setCookie)
   } catch {
     // ignore
@@ -136,7 +135,6 @@ export async function submitAttestationResponse(
   // Capture session cookie if present on response
   try {
     const setCookie = res.headers.get('set-cookie')
-    console.log('[LiquidAuth][DEBUG] Attestation response Set-Cookie header:', setCookie)
     captureConnectSid(setCookie)
   } catch {
     // ignore
@@ -174,9 +172,8 @@ export async function runAttestationFlow(params: {
 
   const encodedOptions = await requestAttestationOptions(baseUrl, userAgent, requestOptions)
 
-  const challenge: Uint8Array = typeof encodedOptions.challenge === 'string'
-    ? fromBase64Url(encodedOptions.challenge)
-    : encodedOptions.challenge
+  const challenge: Uint8Array =
+    typeof encodedOptions.challenge === 'string' ? fromBase64Url(encodedOptions.challenge) : encodedOptions.challenge
 
   const signatureBytes = await signAlgorandChallenge(challenge)
 

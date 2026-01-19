@@ -1,7 +1,14 @@
 import * as bip39 from '@scure/bip39'
 import { sha512_256 } from '@noble/hashes/sha2.js'
 import { base32 } from '@scure/base'
-import { fromSeed, XHDWalletAPI, KeyContext, BIP32DerivationType, SignMetadata, Encoding } from 'hmd2v-xhd-wallet-api'
+import {
+  fromSeed,
+  XHDWalletAPI,
+  KeyContext,
+  BIP32DerivationType,
+  SignMetadata,
+  Encoding,
+} from '@algorandfoundation/xhd-wallet-api'
 import { validateMnemonic } from './bip39Utils'
 import authScema from './auth.request.json'
 
@@ -82,16 +89,6 @@ export class HDWalletService {
       prefixEncodedTx,
       derivationType
     )
-  }
-
-  async performECDH(
-    keyContext: KeyContext,
-    account: number,
-    addressIndex: number,
-    otherPartyPublicKey: Uint8Array,
-    isClient: boolean
-  ): Promise<Uint8Array> {
-    return await this.cryptoService.ECDH(this.rootKey, keyContext, account, addressIndex, otherPartyPublicKey, isClient)
   }
 
   /**

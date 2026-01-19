@@ -1,4 +1,4 @@
-import { BIP32DerivationType } from 'hmd2v-xhd-wallet-api'
+import { BIP32DerivationType } from '@algorandfoundation/xhd-wallet-api'
 import { HDWalletService, encodeAddress } from '../hdWalletUtils'
 
 describe('Blockchain address encoding', () => {

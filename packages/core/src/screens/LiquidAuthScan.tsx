@@ -7,7 +7,7 @@ import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../s
 import { hasHDWalletKey, generateAndStoreHDWalletKey } from '../services/hdWalletKeychain'
 import { loadMnemonic } from '../services/keychain'
 import { DeterministicP256 } from '@algorandfoundation/dp256'
-import { loadDp256MainKey, storeDp256MainKey } from '../services/hdWalletKeychain'
+import { loadDp256MainKey } from '../services/hdWalletKeychain'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import { parseLiquidAuthURI } from '../utils/parsers'
 
@@ -81,7 +81,9 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
               await generateAndStoreHDWalletKey(mnemonic)
             } catch (storeErr) {
               // Non-fatal: we can still derive on-the-fly later
-              // console.log('[LiquidAuth] generateAndStoreHDWalletKey error', storeErr)
+              logger.error('[LiquidAuth][Scan] Failed to generate/store HD wallet key', {
+                error: storeErr as unknown as Record<string, unknown>,
+              })
             }
           }
         }
@@ -105,7 +107,7 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
             const derivedKey = await loadDp256MainKey()
             if (!derivedKey) {
               const msg = 'Missing dp256 derived main key. Complete onboarding.'
-              console.error('[LiquidAuth][Scan] ', msg)
+              logger.error('[LiquidAuth][Scan] Missing dp256 derived main key', { message: msg })
               if (mounted) {
                 setError(msg)
                 setProgress('failed')
@@ -131,8 +133,6 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
             const privateKey = await dp256.genDomainSpecificKeyPair(derivedKey, parsed.origin, userHandle)
             const publicKeyBytes = dp256.getPurePKBytes(privateKey)
 
-            // console.log("signature")
-
             if (mounted) {
               setDp256PublicKey(publicKeyBytes)
               setDp256PrivateKey(privateKey)
@@ -151,15 +151,11 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
             // Pre-link on screen load so the browser peer is associated early
             try {
               if (parsed.requestId) {
-                // console.log('[SignalClient] pre-linking request on load', parsed.requestId)
                 setProgress('linking')
                 setLinkReady(false)
                 await signal.preLink(client, parsed.requestId)
-                // console.log('[SignalClient] pre-link requested')
-                // linkReady will be set on 'link' event or grace timeout
               }
             } catch (e) {
-              // console.log('[SignalClient] pre-link failed:', e)
               setProgress('failed')
               setLinkReady(false)
             }
@@ -190,13 +186,6 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
       const baseUrl = `https://${origin}`
       const publicKeyBytes: Uint8Array = await hdWalletService.generateAlgorandAddressKey(0, 0)
       const algorandAddress = encodeAddress(publicKeyBytes)
-      logger.info('[LiquidAuth][Scan] Attestation start', {
-        baseUrl,
-        origin,
-        requestId,
-        algorandAddress,
-        linkReady,
-      })
 
       // Use a distinct registering phase to avoid bouncing back to "Preparing keys…"
       setProgress('registering')
@@ -208,7 +197,6 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
       }
       // const userAgent = 'liquid-auth/1.0 (iPhone; iOS 18.5)'
       const userAgent = getUserAgent()
-      console.log('[LiquidAuth][Scan] Using User-Agent:', userAgent)
       const { ok, status } = await runAttestationFlow({
         baseUrl,
         userAgent,
@@ -221,7 +209,6 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
         requestOptions,
         signAlgorandChallenge: (bytes) => hdWalletService.signChallengeBytes(0, 0, bytes),
       })
-      logger.info('[LiquidAuth][Scan] Attestation response', { ok, status })
       if (!ok) throw new Error(`Attestation failed: HTTP ${status}`)
 
       // Cooldown to allow server to finalize session before starting peer
@@ -259,23 +246,18 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
 
   // Decoupled signaling flow
   const startSignalFlow = (client: signal.SignalClient, reqId: string) => {
-    // console.log("Trying to create SignalClient peer connection", { origin, requestId: reqId })
     if (isStartingPeerRef.current) {
-      // console.log('[SignalClient] peer start already in progress; skipping duplicate')
       return
     }
     isStartingPeerRef.current = true
-    logger.debug('[LiquidAuth][Scan] Starting peer', { reqId, origin, linkReady })
     setProgress('starting-peer')
 
     signal
       .startPeer(client, reqId, {
         onConnected: () => {
-          logger.info('[LiquidAuth][Scan] Peer connected')
           setProgress('connected')
         },
         onMessage: (m) => {
-          logger.debug('[LiquidAuth][Scan] Signal message', { m })
           setLastSignalMessage(m)
         },
         onError: (e) => {
@@ -296,19 +278,11 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
     try {
       const baseUrl = `https://${origin}`
       const userAgent = getUserAgent()
-      console.log('[LiquidAuth][Scan] Using User-Agent:', userAgent)
 
       if (!dp256PrivateKey) throw new Error('Passkey not initialized: dp256 private key unavailable')
 
       const signingPrivateKey = dp256PrivateKey
       const dp256 = new DeterministicP256()
-      logger.info('[LiquidAuth][Scan] Assertion start', {
-        baseUrl,
-        origin,
-        requestId,
-        address,
-        linkReady,
-      })
       const { ok, status } = await runAssertionFlow({
         baseUrl,
         userAgent,
@@ -321,7 +295,6 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
         device: 'iPhone',
         signAlgorandChallenge: (bytes) => hdWalletService.signChallengeBytes(0, 0, bytes),
       })
-      logger.info('[LiquidAuth][Scan] Assertion response', { ok, status })
       if (!ok) throw new Error(`Assertion failed: HTTP ${status}`)
     } catch (e) {
       logger.error('[LiquidAuth][Scan] Assertion error', { error: e as unknown as Record<string, unknown> })
@@ -360,7 +333,11 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
           {progress === 'connected' ? (
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => navigation.getParent()?.navigate(Stacks.ConnectStack, { screen: Screens.Scan, params: { defaultToConnect: true } })}
+              onPress={() =>
+                navigation
+                  .getParent()
+                  ?.navigate(Stacks.ConnectStack, { screen: Screens.Scan, params: { defaultToConnect: true } })
+              }
             >
               <Text style={styles.primaryButtonText}>Scan again</Text>
             </TouchableOpacity>

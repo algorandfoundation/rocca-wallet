@@ -24,23 +24,19 @@ import getUserAgent from '../modules/liquid-auth/userAgent'
 type Props = StackScreenProps<SettingStackParams, Screens.LiquidAuthSettings>
 
 const LiquidAuthSettings: React.FC<Props> = () => {
-  const { t } = useTranslation()
+  useTranslation()
   const { ColorPalette, TextTheme } = useTheme()
 
   const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://debug.liquidauth.com')
-  const [pawnEndpoint, setPawnEndpoint] = useState<string>("https://worm-different.ngrok.dev")
+  const [pawnEndpoint, setPawnEndpoint] = useState<string>('https://worm-different.ngrok.dev')
   // Helper to fetch requestId from Pawn Endpoint
   const fetchRequestId = useCallback(async () => {
-    if (!pawnEndpoint) throw new Error("Pawn Endpoint is required")
+    if (!pawnEndpoint) throw new Error('Pawn Endpoint is required')
     const url = `${pawnEndpoint.replace(/\/$/, '')}/v1/liquid/start`
-    console.log('[LiquidAuth][DEBUG] Fetching Pawn Endpoint:', url)
     const res = await fetch(url)
-    console.log('[LiquidAuth][DEBUG] Pawn Endpoint response status:', res.status)
     if (!res.ok) throw new Error(`Failed to fetch from Pawn Endpoint: ${res.status}`)
     const data = await res.json()
-    console.log('[LiquidAuth][DEBUG] Pawn Endpoint response JSON:', data)
-    if (!data.requestId) throw new Error("No requestId in Pawn Endpoint response")
-    console.log('[LiquidAuth][DEBUG] Received requestId:', data.requestId)
+    if (!data.requestId) throw new Error('No requestId in Pawn Endpoint response')
     return data.requestId
   }, [pawnEndpoint])
   const [loading, setLoading] = useState<'register' | 'authenticate' | null>(null)
@@ -50,14 +46,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const [dp256PublicKey, setDp256PublicKey] = useState<Uint8Array | undefined>()
   const [dp256PrivateKey, setDp256PrivateKey] = useState<any | null>(null)
   const [origin, setOrigin] = useState<string | undefined>()
-  const [signalClient, setSignalClient] = useState<signal.SignalClient | null>(null)
   const [hdWalletService, setHdWalletService] = useState<HDWalletService | null>(null)
-  const [progress, setProgress] = useState<'idle' | 'linking' | 'registering' | 'authenticating' | 'starting-peer' | 'connected' | 'failed'>('idle')
-  const [linkReady, setLinkReady] = useState<boolean>(false)
+  const [, setProgress] = useState<
+    'idle' | 'linking' | 'registering' | 'authenticating' | 'starting-peer' | 'connected' | 'failed'
+  >('idle')
   const isStartingPeerRef = useRef(false)
   const [lastSignalMessage, setLastSignalMessage] = useState<string | undefined>()
   const [signalError, setSignalError] = useState<string | undefined>()
-
 
   const styles = StyleSheet.create({
     container: {
@@ -112,25 +107,24 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     let mounted = true
     const run = async () => {
       try {
-
         setError('')
-        console.log('[LiquidAuth][DEBUG] useEffect: initializing wallet and keys')
+        logger.debug('[LiquidAuth][DEBUG] useEffect: initializing wallet and keys')
         // Ensure mnemonic / HD wallet is available
         const available = await isAlgorandHDWalletAvailable()
-        console.log('[LiquidAuth][DEBUG] Algorand HD Wallet available:', available)
+        logger.debug('[LiquidAuth][DEBUG] Algorand HD Wallet available', { available })
         if (!available) {
           setError('Recovery phrase not set. Please set your recovery phrase first.')
           return
         }
         const hasKey = await hasHDWalletKey()
-        console.log('[LiquidAuth][DEBUG] Has HD Wallet Key:', hasKey)
+        logger.debug('[LiquidAuth][DEBUG] Has HD Wallet Key', { hasKey })
         if (!hasKey) {
           const mnemonic = await loadMnemonic()
-          console.log('[LiquidAuth][DEBUG] Loaded mnemonic:', !!mnemonic)
+          logger.debug('[LiquidAuth][DEBUG] Loaded mnemonic present', { hasMnemonic: !!mnemonic })
           if (mnemonic) {
             try {
               await generateAndStoreHDWalletKey(mnemonic)
-              console.log('[LiquidAuth][DEBUG] Generated and stored HD Wallet Key')
+              logger.debug('[LiquidAuth][DEBUG] Generated and stored HD Wallet Key')
             } catch {
               // continue
             }
@@ -138,11 +132,14 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         }
         const hd = await createAlgorandHDWalletService()
         if (mounted) setHdWalletService(hd)
+        // Local userHandle avoids reading `address` state inside the effect
+        let userHandle = 'anonymous@local'
         if (hd) {
           const publicKeyBytes = await hd.generateAlgorandAddressKey(0, 0)
           const addrStr = encodeAddress(publicKeyBytes)
+          userHandle = addrStr
           if (mounted) setAddress(addrStr)
-          console.log('[LiquidAuth][DEBUG] Algorand address:', addrStr)
+          logger.debug('[LiquidAuth][DEBUG] Algorand address derived')
         }
         // dp256 derivation
         const mnemonic = await loadMnemonic()
@@ -153,7 +150,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           const derivedKey = await loadDp256MainKey()
           if (!derivedKey) {
             const msg = 'Missing dp256 derived main key. Complete onboarding or restore your recovery phrase.'
-            console.error('[LiquidAuth][Settings] ', msg)
+            logger.error('[LiquidAuth][Settings] Missing dp256 derived main key', { message: msg })
             if (mounted) {
               setError(msg)
               setProgress('failed')
@@ -170,14 +167,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
             }
           })()
           setOrigin(originHost)
-          console.log('[LiquidAuth][DEBUG] Origin host:', originHost)
-          const userHandle = address ?? 'anonymous@local'
+          logger.debug('[LiquidAuth][DEBUG] Origin host parsed', { originHost })
           const privateKey = await dp256.genDomainSpecificKeyPair(derivedKey, originHost, userHandle)
           const publicKeyBytes = dp256.getPurePKBytes(privateKey)
           if (mounted) {
             setDp256PublicKey(publicKeyBytes)
             setDp256PrivateKey(privateKey)
-            console.log('[LiquidAuth][DEBUG] dp256 public key:', publicKeyBytes)
+            logger.debug('[LiquidAuth][DEBUG] dp256 public key derived')
           }
           // SignalClient is not created here; we delay it until after
           // attestation/assertion so that the HTTP session (connect.sid)
@@ -185,7 +181,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         }
       } catch (e) {
         setError((e as Error).message)
-        console.log('[LiquidAuth][DEBUG] useEffect error:', e)
+        logger.debug('[LiquidAuth][DEBUG] useEffect error', { error: e })
       }
     }
     run()
@@ -194,33 +190,36 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     }
   }, [liquidAuthSignalingUrl])
 
-  const startSignalFlow = React.useCallback(async (client: signal.SignalClient, reqId: string) => {
-    if (isStartingPeerRef.current) return
-    isStartingPeerRef.current = true
+  const startSignalFlow = React.useCallback(
+    async (client: signal.SignalClient, reqId: string) => {
+      if (isStartingPeerRef.current) return
+      isStartingPeerRef.current = true
 
-    console.log('[LiquidAuth][DEBUG] startSignalFlow: Starting peer directly (no preLink)', { reqId })
-    // Backend (Pawn) already linked when it created requestId with peer(..., 'offer')
-    // Mobile just needs to call peer(..., 'answer') without additional link()
+      logger.debug('[LiquidAuth][DEBUG] startSignalFlow: Starting peer directly (no preLink)', { reqId })
+      // Backend (Pawn) already linked when it created requestId with peer(..., 'offer')
+      // Mobile just needs to call peer(..., 'answer') without additional link()
 
-    setProgress('starting-peer')
-    return signal
-      .startPeer(client, reqId, {
-        onConnected: () => {
-          setProgress('connected')
-        },
-        onMessage: (m) => {
-          setLastSignalMessage(m)
-        },
-        onError: (e) => {
-          logger.error('[LiquidAuth][Settings] Signal error', { error: e as unknown as Record<string, unknown> })
-          setSignalError(e)
-          setProgress('failed')
-        },
-      })
-      .finally(() => {
-        isStartingPeerRef.current = false
-      })
-  }, [setProgress, setLastSignalMessage, setSignalError])
+      setProgress('starting-peer')
+      return signal
+        .startPeer(client, reqId, {
+          onConnected: () => {
+            setProgress('connected')
+          },
+          onMessage: (m) => {
+            setLastSignalMessage(m)
+          },
+          onError: (e) => {
+            logger.error('[LiquidAuth][Settings] Signal error', { error: e as unknown as Record<string, unknown> })
+            setSignalError(e)
+            setProgress('failed')
+          },
+        })
+        .finally(() => {
+          isStartingPeerRef.current = false
+        })
+    },
+    [setProgress, setLastSignalMessage, setSignalError]
+  )
 
   const onRegister = useCallback(async () => {
     if (!origin || !hdWalletService || !dp256PublicKey) return
@@ -229,15 +228,12 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       setResult('')
       setError('')
       setProgress('registering')
-      console.log('[LiquidAuth][DEBUG] Register: Fetching requestId from Pawn Endpoint')
       const reqId = await fetchRequestId()
-      console.log('[LiquidAuth][DEBUG] Register: Got requestId', reqId)
       // Add 2 second delay after fetching requestId
       await new Promise((r) => setTimeout(r, 2000))
       const baseUrl = liquidAuthSignalingUrl
       const publicKeyBytes: Uint8Array = await hdWalletService.generateAlgorandAddressKey(0, 0)
       const algorandAddress = encodeAddress(publicKeyBytes)
-      console.log('[LiquidAuth][DEBUG] Register: Attestation start', { baseUrl, origin, requestId: reqId, algorandAddress, linkReady })
       const requestOptions: AttestationRequestOptions = {
         username: algorandAddress,
         displayName: 'Liquid Auth User',
@@ -257,32 +253,26 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         requestOptions,
         signAlgorandChallenge: (bytes) => hdWalletService.signChallengeBytes(0, 0, bytes),
       })
-      console.log('[LiquidAuth][DEBUG] Register: Attestation response', { ok, status })
       if (!ok) throw new Error(`Attestation failed: HTTP ${status}`)
       await new Promise((r) => setTimeout(r, 600))
 
       // Create SignalClient lazily after attestation so that it can
       // reuse the HTTP session (connect.sid) established above.
-      console.log('[LiquidAuth][DEBUG] Register: Creating SignalClient post-attestation')
       const client = signal.createSignalClient(baseUrl, {
         onLink: () => {
-          setLinkReady(true)
-          if (progress === 'linking') setProgress('idle')
-          console.log('[LiquidAuth][DEBUG] SignalClient linked (register)')
+          logger.debug('[LiquidAuth][DEBUG] signal onLink')
+          setProgress((p) => (p === 'linking' ? 'idle' : p))
         },
       })
-      setSignalClient(client)
-      console.log('[LiquidAuth][DEBUG] Register: Starting peer post-attestation')
       await startSignalFlow(client, reqId)
     } catch (e) {
       logger.error('[LiquidAuth][Settings] Attestation error', { error: e as unknown as Record<string, unknown> })
       setError((e as Error).message)
       setProgress('failed')
-      console.log('[LiquidAuth][DEBUG] Register: Error', e)
     } finally {
       setLoading(null)
     }
-  }, [origin, hdWalletService, dp256PublicKey, liquidAuthSignalingUrl, linkReady, signalClient, fetchRequestId, startSignalFlow])
+  }, [origin, hdWalletService, dp256PublicKey, liquidAuthSignalingUrl, fetchRequestId, startSignalFlow])
 
   const onAuthenticate = useCallback(async () => {
     if (!origin || !hdWalletService || !dp256PublicKey || !dp256PrivateKey || !address) return
@@ -291,14 +281,11 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       setError('')
       setResult('')
       setProgress('authenticating')
-      console.log('[LiquidAuth][DEBUG] Authenticate: Fetching requestId from Pawn Endpoint')
       const reqId = await fetchRequestId()
-      console.log('[LiquidAuth][DEBUG] Authenticate: Got requestId', reqId)
       // Add 2 second delay after fetching requestId
       await new Promise((r) => setTimeout(r, 2000))
       const baseUrl = liquidAuthSignalingUrl
       const userAgent = getUserAgent()
-      console.log('[LiquidAuth][DEBUG] Authenticate: Assertion start', { baseUrl, origin, requestId: reqId, address, linkReady })
       const dp256 = new DeterministicP256()
       const { ok, status } = await runAssertionFlow({
         baseUrl,
@@ -312,37 +299,38 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         device: 'iPhone',
         signAlgorandChallenge: (bytes) => hdWalletService.signChallengeBytes(0, 0, bytes),
       })
-      console.log('[LiquidAuth][DEBUG] Authenticate: Assertion response', { ok, status })
       if (!ok) throw new Error(`Assertion failed: HTTP ${status}`)
       await new Promise((r) => setTimeout(r, 600))
 
-      console.log('[LiquidAuth][DEBUG] Authenticate: Creating SignalClient post-assertion')
       const client = signal.createSignalClient(baseUrl, {
         onLink: () => {
-          setLinkReady(true)
-          if (progress === 'linking') setProgress('idle')
-          console.log('[LiquidAuth][DEBUG] SignalClient linked (authenticate)')
+          logger.debug('[LiquidAuth][DEBUG] signal onLink')
+          setProgress((p) => (p === 'linking' ? 'idle' : p))
         },
       })
-      setSignalClient(client)
-      console.log('[LiquidAuth][DEBUG] Authenticate: Starting peer post-assertion')
       await startSignalFlow(client, reqId)
     } catch (e) {
       logger.error('[LiquidAuth][Settings] Assertion error', { error: e as unknown as Record<string, unknown> })
       setError((e as Error).message)
       setProgress('failed')
-      console.log('[LiquidAuth][DEBUG] Authenticate: Error', e)
     } finally {
       setLoading(null)
     }
-  }, [origin, hdWalletService, dp256PublicKey, dp256PrivateKey, address, liquidAuthSignalingUrl, linkReady, signalClient, fetchRequestId, startSignalFlow])
+  }, [
+    origin,
+    hdWalletService,
+    dp256PublicKey,
+    dp256PrivateKey,
+    address,
+    liquidAuthSignalingUrl,
+    fetchRequestId,
+    startSignalFlow,
+  ])
 
   return (
     <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
       <View>
-        <ThemedText style={[TextTheme.normal, styles.paragraph]}>
-          Intermezzo Pawn Endpoint:
-        </ThemedText>
+        <ThemedText style={[TextTheme.normal, styles.paragraph]}>Intermezzo Pawn Endpoint:</ThemedText>
 
         <TextInput
           value={pawnEndpoint}
@@ -356,9 +344,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           accessibilityLabel="Pawn Endpoint"
           testID="PawnEndpointInput"
         />
-        <ThemedText style={[TextTheme.normal, styles.paragraph]}>
-          Liquid Auth Signaling Server:
-        </ThemedText>
+        <ThemedText style={[TextTheme.normal, styles.paragraph]}>Liquid Auth Signaling Server:</ThemedText>
         <TextInput
           value={liquidAuthSignalingUrl}
           onChangeText={setliquidAuthSignalingUrl}

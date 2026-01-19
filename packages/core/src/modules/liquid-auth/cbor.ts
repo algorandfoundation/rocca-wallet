@@ -1,6 +1,6 @@
-import { decode as cborDecode } from 'cbor-x'
 import { sha256 } from '@noble/hashes/sha2'
-import { fromBase64Url, toBase64URL } from '@algorandfoundation/liquid-client/lib/encoding'
+import { fromBase64Url, toBase64URL } from '@algorandfoundation/liquid-client'
+import { decode as cborDecode } from 'cbor-x'
 
 // TODO: see what can be replaced with cbor-x functions
 

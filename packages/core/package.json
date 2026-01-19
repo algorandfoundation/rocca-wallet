@@ -38,6 +38,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@algorandfoundation/dp256": "^1.1.0",
     "@babel/core": "~7.22.20",
     "@babel/runtime": "~7.23.9",
     "@bifold/oca": "2.10.2",
@@ -242,11 +243,11 @@
   "dependencies": {
     "@algorandfoundation/algo-models": "^0.0.8",
     "@algorandfoundation/algokit-utils": "^9.1.2",
-    "@algorandfoundation/liquid-client": "algorandfoundation/liquid-auth-js#chore/dist",
+    "@algorandfoundation/liquid-client": "file:../../algorandfoundation-liquid-client-1.0.0-canary.3.tgz",
+    "@algorandfoundation/xhd-wallet-api": "file:../../algorandfoundation-xhd-wallet-api-v2.0.0-canary.1.tgz",
     "@noble/hashes": "^1.4.0",
     "@scure/base": "^2.0.0",
     "@scure/bip39": "^2.0.1",
-    "cbor-x": "^1.5.0",
-    "hmd2v-xhd-wallet-api": "^1.2.0"
+    "cbor-x": "^1.5.0"
   }
 }

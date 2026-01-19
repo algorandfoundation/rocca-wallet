@@ -1,6 +1,7 @@
-import { SignalClient } from '@algorandfoundation/liquid-client/lib/signal'
-export type { SignalClient } from '@algorandfoundation/liquid-client/lib/signal'
+import { SignalClient } from '@algorandfoundation/liquid-client'
+export type { SignalClient } from '@algorandfoundation/liquid-client'
 import { getConnectSidCookieHeader } from './sessionCookie'
+import { bifoldLoggerInstance as logger } from '../../services/bifoldLogger'
 
 export type SignalHandlers = {
   onLink?: () => void
@@ -18,15 +19,11 @@ export function createSignalClient(baseUrl: string, handlers?: SignalHandlers): 
   // HTTP session cookie so that the signaling server can associate this
   // socket with the same session/wallet used during attestation/assertion.
   if (cookieHeader) {
-    console.log('[LiquidAuth][DEBUG] createSignalClient: attaching Cookie header to socket.io handshake', {
-      baseUrl,
-      cookieHeader,
-    })
     options.extraHeaders = {
       Cookie: cookieHeader,
     }
   } else {
-    console.log('[LiquidAuth][DEBUG] createSignalClient: no Cookie header available for socket.io handshake', {
+    logger.debug('[LiquidAuth][DEBUG] createSignalClient: no Cookie header available for socket.io handshake', {
       baseUrl,
     })
   }
@@ -39,12 +36,9 @@ export function createSignalClient(baseUrl: string, handlers?: SignalHandlers): 
 }
 
 export async function preLink(client: SignalClient, requestId: string): Promise<void> {
-  console.log('[LiquidAuth][DEBUG] preLink starting', { requestId })
-
   // Create a promise that resolves when the 'link' event fires
   const linkPromise = new Promise<void>((resolve) => {
     const handler = () => {
-      console.log('[LiquidAuth][DEBUG] preLink: link event received')
       resolve()
     }
     client.once('link', handler as any)
@@ -52,18 +46,11 @@ export async function preLink(client: SignalClient, requestId: string): Promise<
 
   // Call link (this may or may not return a resolving promise)
   client.link(requestId).catch((e) => {
-    console.log('[LiquidAuth][DEBUG] preLink: client.link promise rejected', e)
+    logger.debug('[LiquidAuth][DEBUG] preLink: client.link promise rejected', { error: e })
   })
 
-  // Wait for either the link event OR a timeout
-  await Promise.race([
-    linkPromise,
-    sleep(3000).then(() => {
-      console.log('[LiquidAuth][DEBUG] preLink: timeout, proceeding anyway')
-    })
-  ])
-
-  console.log('[LiquidAuth][DEBUG] preLink done', { requestId })
+  // Wait for either the link event OR a timeout (silent on timeout)
+  await Promise.race([linkPromise, sleep(3000)])
 }
 
 function sleep(ms: number) {
@@ -89,9 +76,9 @@ export async function startPeer(
   handlers?: SignalHandlers,
   attempts: number = 3,
   backoffMs: number = 600,
-  timeoutMs: number = 8000,
+  timeoutMs: number = 8000
 ): Promise<void> {
-  console.log('[LiquidAuth][DEBUG] startPeer called', { reqId, socketId: (client as any).socket?.id })
+  logger.debug('[LiquidAuth][DEBUG] startPeer called', { reqId, socketId: (client as any).socket?.id })
 
   // liquid-client's SignalClient requires an authenticated flag before it will
   // process SDP descriptions via signal(type). In the browser module flow this
@@ -102,32 +89,22 @@ export async function startPeer(
   // signal(type) will attach listeners for answer-description/offer-description
   // and drive setRemoteDescription/addIceCandidate.
   if (!(client as any).authenticated) {
-    console.log('[LiquidAuth][DEBUG] Forcing SignalClient authenticated=true before peer')
-      ; (client as any).authenticated = true
+    logger.debug('[LiquidAuth][DEBUG] Forcing SignalClient authenticated=true before peer')
+    ;(client as any).authenticated = true
   }
 
   // Add socket event listener for debugging
   try {
     const socket = (client as any).socket
     if (socket) {
-      console.log('[LiquidAuth][DEBUG] Attaching socket listeners')
-
-      // Log all outgoing events
+      // attach minimal diagnostics only in case of errors
       const originalEmit = socket.emit.bind(socket)
       socket.emit = function (...args: any[]) {
-        console.log('[LiquidAuth][DEBUG] Socket EMIT:', args[0], JSON.stringify(args.slice(1)).slice(0, 200))
         return originalEmit(...args)
       }
-
-      // Log all incoming events
-      socket.onAny?.((eventName: string, ...args: any[]) => {
-        console.log('[LiquidAuth][DEBUG] Socket RECEIVE:', eventName, JSON.stringify(args).slice(0, 200))
-      })
-    } else {
-      console.log('[LiquidAuth][DEBUG] No socket found on client')
     }
   } catch (e) {
-    console.log('[LiquidAuth][DEBUG] Could not attach socket listener', e)
+    logger.debug('[LiquidAuth][DEBUG] Could not attach socket listener', { error: e })
   }
 
   try {
@@ -162,114 +139,59 @@ export async function startPeer(
         iceServers,
         iceCandidatePoolSize: 20,
       }),
-      timeoutMs,
+      timeoutMs
     )
 
     // WebRTC debug: data channel lifecycle and peer connection state
     try {
       const dc: any = dataChannel as any
       if (dc) {
-        console.log('[LiquidAuth][DEBUG] DataChannel created', {
-          label: dc.label,
-          readyState: dc.readyState,
-        })
-
-        const originalOnOpen = dc.onopen
-        const originalOnClose = dc.onclose
+        logger.debug('[LiquidAuth][DEBUG] DataChannel created', { label: dc.label })
         const originalOnError = dc.onerror
-
-        dc.onopen = (event: any) => {
-          console.log('[LiquidAuth][DEBUG] DataChannel onopen', {
-            label: dc.label,
-            readyState: dc.readyState,
-          })
-          originalOnOpen?.(event)
-        }
-
-        dc.onclose = (event: any) => {
-          console.log('[LiquidAuth][DEBUG] DataChannel onclose', {
-            label: dc.label,
-            readyState: dc.readyState,
-          })
-          originalOnClose?.(event)
-        }
-
         dc.onerror = (event: any) => {
-          console.log('[LiquidAuth][DEBUG] DataChannel onerror', {
-            label: dc.label,
-            readyState: dc.readyState,
-            error: event,
-          })
+          logger.error('[LiquidAuth][DEBUG] DataChannel onerror', { label: dc.label, error: event })
           originalOnError?.(event)
         }
 
         // Try to introspect underlying RTCPeerConnection for state changes
         const pc: any =
-          dc._peerConnection ||
-          dc.peerConnection ||
-          (client as any)._peerConnection ||
-          (client as any).peerConnection
+          dc._peerConnection || dc.peerConnection || (client as any)._peerConnection || (client as any).peerConnection
 
         if (pc) {
-          console.log('[LiquidAuth][DEBUG] RTCPeerConnection initial state', {
-            iceConnectionState: pc.iceConnectionState,
-            connectionState: pc.connectionState,
-          })
-
-          const originalIceHandler = pc.oniceconnectionstatechange
-          pc.oniceconnectionstatechange = (event: any) => {
-            console.log('[LiquidAuth][DEBUG] RTCPeerConnection iceConnectionState change', {
-              iceConnectionState: pc.iceConnectionState,
-            })
-            originalIceHandler?.(event)
-          }
-
-          const originalConnHandler = pc.onconnectionstatechange
-          pc.onconnectionstatechange = (event: any) => {
-            console.log('[LiquidAuth][DEBUG] RTCPeerConnection connectionState change', {
-              connectionState: pc.connectionState,
-            })
-            originalConnHandler?.(event)
-          }
-        } else {
-          console.log('[LiquidAuth][DEBUG] RTCPeerConnection not found on dataChannel/SignalClient')
+          // keep RTCPeerConnection introspection minimal
+          logger.debug('[LiquidAuth][DEBUG] RTCPeerConnection present')
         }
       }
     } catch (pcErr) {
-      console.log('[LiquidAuth][DEBUG] Error attaching WebRTC debug handlers', pcErr)
+      logger.debug('[LiquidAuth][DEBUG] Error attaching WebRTC debug handlers', { error: pcErr })
     }
 
     handlers?.onConnected?.()
-
-      ; (dataChannel as any).onmessage = (event: MessageEvent) => {
-        try {
-          const msg = typeof event.data === 'string' ? event.data : JSON.stringify(event.data)
-          handlers?.onMessage?.(msg)
-        } catch {
-          handlers?.onMessage?.('[unreadable message]')
-        }
+    ;(dataChannel as any).onmessage = (event: MessageEvent) => {
+      try {
+        const msg = typeof event.data === 'string' ? event.data : JSON.stringify(event.data)
+        handlers?.onMessage?.(msg)
+      } catch {
+        handlers?.onMessage?.('[unreadable message]')
       }
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     // Gracefully retry when server says a request is already in process
     if (attempts > 1 && /request in process/i.test(message)) {
       await sleep(backoffMs)
       handlers?.onStatus?.('Retry: request in process')
+      logger.debug('[LiquidAuth][DEBUG] startPeer retry: request in process', { reqId })
       return startPeer(client, reqId, handlers, attempts - 1, Math.min(backoffMs * 2, 2500), timeoutMs)
     }
     // If connectivity fails, retry
     if (attempts > 1 && /(ice|stun|candidate|network|timeout)/i.test(message)) {
       await sleep(backoffMs)
       handlers?.onStatus?.('Retry: connection error')
-      return startPeer(
-        client,
-        reqId,
-        handlers,
-        attempts - 1,
-        Math.min(backoffMs * 2, 2500),
-        timeoutMs,
-      )
+      logger.debug('[LiquidAuth][DEBUG] startPeer retry: connectivity error', { reqId, message })
+      return startPeer(client, reqId, handlers, attempts - 1, Math.min(backoffMs * 2, 2500), timeoutMs)
     }
+    logger.error('[LiquidAuth][ERROR] startPeer failed', { reqId, message })
     handlers?.onError?.(message)
     throw e
   }

@@ -1,4 +1,5 @@
 import Cookies from '@react-native-cookies/cookies'
+import { bifoldLoggerInstance as logger } from '../../services/bifoldLogger'
 
 let connectSid: string | null = null
 
@@ -13,24 +14,18 @@ export function captureConnectSid(setCookieHeader: string | null) {
   try {
     // Store the raw value; encoding will be handled when sending
     connectSid = decodeURIComponent(match[1])
-    // eslint-disable-next-line no-console
-    console.log('[LiquidAuth][DEBUG] Captured connect.sid cookie')
   } catch (e) {
     connectSid = match[1]
-    // eslint-disable-next-line no-console
-    console.log('[LiquidAuth][DEBUG] Captured connect.sid cookie (raw)', e)
   }
 }
 
 // Build a Cookie header value for use in Socket.IO extraHeaders
 export function getConnectSidCookieHeader(): string | undefined {
   if (!connectSid) {
-    console.log('[LiquidAuth][DEBUG] getConnectSidCookieHeader: no connect.sid captured yet')
     return undefined
   }
   // Minimal cookie header with just connect.sid
   const encoded = encodeURIComponent(connectSid)
-   console.log('[LiquidAuth][DEBUG] getConnectSidCookieHeader: building Cookie header for socket')
   return `connect.sid=${encoded}`
 }
 
@@ -45,19 +40,13 @@ export async function syncConnectSidFromCookies(baseUrl: string): Promise<void> 
 
     if (sid && typeof sid.value === 'string' && sid.value.length > 0) {
       connectSid = decodeURIComponent(sid.value)
-      // eslint-disable-next-line no-console
-      console.log('[LiquidAuth][DEBUG] syncConnectSidFromCookies: captured connect.sid from native cookie jar', {
-        baseUrl,
-      })
     } else {
-      // eslint-disable-next-line no-console
-      console.log('[LiquidAuth][DEBUG] syncConnectSidFromCookies: no connect.sid found in native cookie jar', {
+      logger.debug('[LiquidAuth][DEBUG] syncConnectSidFromCookies: no connect.sid found in native cookie jar', {
         baseUrl,
       })
     }
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.log('[LiquidAuth][DEBUG] syncConnectSidFromCookies: error reading native cookies', {
+    logger.debug('[LiquidAuth][DEBUG] syncConnectSidFromCookies: error reading native cookies', {
       baseUrl,
       error: e,
     })
