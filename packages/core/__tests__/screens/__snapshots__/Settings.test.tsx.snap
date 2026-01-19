@@ -78,6 +78,13 @@ exports[`Settings Screen Renders correctly 1`] = `
               "value": undefined,
             },
             Object {
+              "accessibilityLabel": "LiquidAuthSettings.Title",
+              "onPress": [Function],
+              "testID": "com.ariesbifold:id/LiquidAuthSettings",
+              "title": "LiquidAuthSettings.Title",
+              "value": undefined,
+            },
+            Object {
               "accessibilityLabel": "Settings.Language",
               "onPress": [Function],
               "testID": "com.ariesbifold:id/Language",
@@ -907,6 +914,139 @@ exports[`Settings Screen Renders correctly 1`] = `
                   }
                 >
                   RecoveryPhrase.Title
+                </Text>
+                <Text
+                  maxFontSizeMultiplier={2}
+                  style={
+                    Array [
+                      Object {
+                        "color": "#FFFFFF",
+                        "fontSize": 18,
+                        "fontWeight": "normal",
+                      },
+                      Array [
+                        Object {
+                          "color": "#FFFFFF",
+                          "fontSize": 21,
+                          "fontWeight": "normal",
+                        },
+                        Object {
+                          "color": "#42803E",
+                        },
+                      ],
+                    ]
+                  }
+                />
+              </View>
+            </View>
+          </RCTScrollView>
+          <View
+            style={
+              Object {
+                "backgroundColor": "#313132",
+              }
+            }
+          >
+            <View
+              style={
+                Object {
+                  "borderBottomColor": "#000000",
+                  "borderBottomWidth": 1,
+                  "marginHorizontal": 25,
+                }
+              }
+            />
+          </View>
+        </View>
+      </View>
+      <View
+        onFocusCapture={[Function]}
+        onLayout={[Function]}
+        style={null}
+      >
+        <View>
+          <RCTScrollView
+            contentContainerStyle={
+              Object {
+                "flexGrow": 1,
+              }
+            }
+            horizontal={true}
+            style={
+              Object {
+                "backgroundColor": "#313132",
+                "flexGrow": 1,
+                "paddingVertical": 24,
+              }
+            }
+          >
+            <View>
+              <View
+                accessibilityLabel="LiquidAuthSettings.Title"
+                accessibilityRole="button"
+                accessibilityState={
+                  Object {
+                    "busy": undefined,
+                    "checked": undefined,
+                    "disabled": undefined,
+                    "expanded": undefined,
+                    "selected": undefined,
+                  }
+                }
+                accessibilityValue={
+                  Object {
+                    "max": undefined,
+                    "min": undefined,
+                    "now": undefined,
+                    "text": undefined,
+                  }
+                }
+                accessible={true}
+                collapsable={false}
+                focusable={true}
+                onClick={[Function]}
+                onResponderGrant={[Function]}
+                onResponderMove={[Function]}
+                onResponderRelease={[Function]}
+                onResponderTerminate={[Function]}
+                onResponderTerminationRequest={[Function]}
+                onStartShouldSetResponder={[Function]}
+                style={
+                  Object {
+                    "alignItems": "flex-start",
+                    "flexDirection": "column",
+                    "flexGrow": 1,
+                    "justifyContent": "space-between",
+                    "opacity": 1,
+                    "paddingHorizontal": 25,
+                  }
+                }
+                testID="com.ariesbifold:id/LiquidAuthSettings"
+              >
+                <Text
+                  maxFontSizeMultiplier={2}
+                  style={
+                    Array [
+                      Object {
+                        "color": "#FFFFFF",
+                        "fontSize": 18,
+                        "fontWeight": "normal",
+                      },
+                      Array [
+                        Object {
+                          "color": "#FFFFFF",
+                          "fontSize": 21,
+                          "fontWeight": "normal",
+                        },
+                        Object {
+                          "marginRight": 14,
+                          "maxWidth": "95%",
+                        },
+                      ],
+                    ]
+                  }
+                >
+                  LiquidAuthSettings.Title
                 </Text>
                 <Text
                   maxFontSizeMultiplier={2}
