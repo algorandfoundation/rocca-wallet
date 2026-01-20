@@ -39,7 +39,6 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   const [error, setError] = useState<string | undefined>()
   const [address, setAddress] = useState<string | undefined>()
   const [dp256PublicKey, setDp256PublicKey] = useState<Uint8Array | undefined>()
-  // TODO: re-derive on-the-fly as needed in both registrate and authenticate flows
   const [dp256PrivateKey, setDp256PrivateKey] = useState<any | null>(null)
   const [origin, setOrigin] = useState<string | undefined>()
   const [requestId, setRequestId] = useState<string | undefined>()
@@ -91,9 +90,13 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
         // Initialize HD wallet service and derive Algorand address via public key bytes
         const hd = await createAlgorandHDWalletService()
         if (mounted) setHdWalletService(hd)
+        // Capture derived address locally so we can use it synchronously
+        // during this initialization run (React state updates are async).
+        let derivedAlgorandAddress: string | undefined
         if (hd) {
           const publicKeyBytes = await hd.generateAlgorandAddressKey(0, 0)
           const addrStr = encodeAddress(publicKeyBytes)
+          derivedAlgorandAddress = addrStr
           if (mounted) setAddress(addrStr)
         }
 
@@ -127,7 +130,18 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
             }
             setOrigin(parsed.origin)
             setRequestId(parsed.requestId)
-            const userHandle = address ?? 'anonymous@local'
+            // Strict: require the locally-derived Algorand address only.
+            const userHandle = derivedAlgorandAddress
+            if (!userHandle) {
+              const msg = 'Algorand address unavailable for dp256 derivation; cannot proceed.'
+              logger.error('[LiquidAuth][Scan] Missing algorand address for dp256', { message: msg })
+              if (mounted) {
+                setError(msg)
+                setProgress('failed')
+                setLoading(false)
+              }
+              return
+            }
 
             // Generate domain-specific passkey keypair and sample signature
             const privateKey = await dp256.genDomainSpecificKeyPair(derivedKey, parsed.origin, userHandle)

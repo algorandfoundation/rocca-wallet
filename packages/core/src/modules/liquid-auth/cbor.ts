@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha2'
 import { fromBase64Url, toBase64URL } from '@algorandfoundation/liquid-client'
 import { decode as cborDecode } from 'cbor-x'
 
-// TODO: see what can be replaced with cbor-x functions
+// TODO: explore what can be replaced with cbor-x functions
 
 // Convert dp256 64-byte public key (x||y) to uncompressed 65-byte form (0x04||x||y)
 function toUncompressed(pubKey: Uint8Array): Uint8Array {

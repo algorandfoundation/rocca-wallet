@@ -2,6 +2,7 @@ import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client/'
 import { sha256 } from '@noble/hashes/sha2'
 import { buildAuthenticatorData, buildAttestationObject, getAttestedCredentialData } from './cbor'
 import { captureConnectSid, syncConnectSidFromCookies } from './sessionCookie'
+import { bifoldLoggerInstance as logger } from '../../services/bifoldLogger'
 
 export type AttestationRequestOptions = {
   username: string
@@ -27,8 +28,10 @@ export async function requestAttestationOptions(
   try {
     const setCookie = res.headers.get('set-cookie')
     captureConnectSid(setCookie)
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.debug('[LiquidAuth][register] Failed to capture connect.sid from requestAttestationOptions response', {
+      error: e as unknown as Record<string, unknown>,
+    })
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -136,8 +139,10 @@ export async function submitAttestationResponse(
   try {
     const setCookie = res.headers.get('set-cookie')
     captureConnectSid(setCookie)
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.debug('[LiquidAuth][register] Failed to capture connect.sid from submitAttestationResponse response', {
+      error: e as unknown as Record<string, unknown>,
+    })
   }
   const body = await res.text()
   return { ok: res.ok, status: res.status, body }
@@ -206,8 +211,12 @@ export async function runAttestationFlow(params: {
   // SignalClient can forward it on the Socket.IO handshake.
   try {
     await syncConnectSidFromCookies(baseUrl)
-  } catch {
-    // ignore; cookie sync is best-effort
+  } catch (e) {
+    // cookie sync is best-effort
+    logger.debug('[LiquidAuth][register] syncConnectSidFromCookies failed', {
+      error: e as unknown as Record<string, unknown>,
+      baseUrl,
+    })
   }
 
   return { ok, status, body, credential, encodedOptions }

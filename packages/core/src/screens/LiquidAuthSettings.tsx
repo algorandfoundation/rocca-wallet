@@ -108,23 +108,18 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     const run = async () => {
       try {
         setError('')
-        logger.debug('[LiquidAuth][DEBUG] useEffect: initializing wallet and keys')
         // Ensure mnemonic / HD wallet is available
         const available = await isAlgorandHDWalletAvailable()
-        logger.debug('[LiquidAuth][DEBUG] Algorand HD Wallet available', { available })
         if (!available) {
           setError('Recovery phrase not set. Please set your recovery phrase first.')
           return
         }
         const hasKey = await hasHDWalletKey()
-        logger.debug('[LiquidAuth][DEBUG] Has HD Wallet Key', { hasKey })
         if (!hasKey) {
           const mnemonic = await loadMnemonic()
-          logger.debug('[LiquidAuth][DEBUG] Loaded mnemonic present', { hasMnemonic: !!mnemonic })
           if (mnemonic) {
             try {
               await generateAndStoreHDWalletKey(mnemonic)
-              logger.debug('[LiquidAuth][DEBUG] Generated and stored HD Wallet Key')
             } catch {
               // continue
             }
@@ -132,15 +127,22 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         }
         const hd = await createAlgorandHDWalletService()
         if (mounted) setHdWalletService(hd)
-        // Local userHandle avoids reading `address` state inside the effect
-        let userHandle = 'anonymous@local'
-        if (hd) {
-          const publicKeyBytes = await hd.generateAlgorandAddressKey(0, 0)
-          const addrStr = encodeAddress(publicKeyBytes)
-          userHandle = addrStr
-          if (mounted) setAddress(addrStr)
-          logger.debug('[LiquidAuth][DEBUG] Algorand address derived')
+        // Require Algorand address for dp256 derivation. Fail early if
+        // the HD wallet service or address cannot be obtained — we do
+        // not allow falling back to an anonymous handle.
+        if (!hd) {
+          const msg = 'HD wallet service unavailable; cannot derive Algorand address.'
+          logger.error('[LiquidAuth][Settings] Missing HD wallet service', { message: msg })
+          if (mounted) {
+            setError(msg)
+            setProgress('failed')
+          }
+          return
         }
+        const publicKeyBytes = await hd.generateAlgorandAddressKey(0, 0)
+        const addrStr = encodeAddress(publicKeyBytes)
+        const userHandle = addrStr
+        if (mounted) setAddress(addrStr)
         // dp256 derivation
         const mnemonic = await loadMnemonic()
         if (mnemonic) {
@@ -167,13 +169,21 @@ const LiquidAuthSettings: React.FC<Props> = () => {
             }
           })()
           setOrigin(originHost)
-          logger.debug('[LiquidAuth][DEBUG] Origin host parsed', { originHost })
-          const privateKey = await dp256.genDomainSpecificKeyPair(derivedKey, originHost, userHandle)
+          const algorandAddressForUser = userHandle ?? address
+          if (!algorandAddressForUser) {
+            const msg = 'Algorand address unavailable for dp256 derivation.'
+            logger.error('[LiquidAuth][Settings] Missing Algorand address for dp256', { message: msg })
+            if (mounted) {
+              setError(msg)
+              setProgress('failed')
+            }
+            return
+          }
+          const privateKey = await dp256.genDomainSpecificKeyPair(derivedKey, originHost, algorandAddressForUser)
           const publicKeyBytes = dp256.getPurePKBytes(privateKey)
           if (mounted) {
             setDp256PublicKey(publicKeyBytes)
             setDp256PrivateKey(privateKey)
-            logger.debug('[LiquidAuth][DEBUG] dp256 public key derived')
           }
           // SignalClient is not created here; we delay it until after
           // attestation/assertion so that the HTTP session (connect.sid)
@@ -181,21 +191,20 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         }
       } catch (e) {
         setError((e as Error).message)
-        logger.debug('[LiquidAuth][DEBUG] useEffect error', { error: e })
+        logger.error('[LiquidAuth][Settings] Initialization error', { error: e as unknown as Record<string, unknown> })
       }
     }
     run()
     return () => {
       mounted = false
     }
-  }, [liquidAuthSignalingUrl])
+  }, [address, liquidAuthSignalingUrl])
 
   const startSignalFlow = React.useCallback(
     async (client: signal.SignalClient, reqId: string) => {
       if (isStartingPeerRef.current) return
       isStartingPeerRef.current = true
 
-      logger.debug('[LiquidAuth][DEBUG] startSignalFlow: Starting peer directly (no preLink)', { reqId })
       // Backend (Pawn) already linked when it created requestId with peer(..., 'offer')
       // Mobile just needs to call peer(..., 'answer') without additional link()
 
@@ -260,7 +269,6 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       // reuse the HTTP session (connect.sid) established above.
       const client = signal.createSignalClient(baseUrl, {
         onLink: () => {
-          logger.debug('[LiquidAuth][DEBUG] signal onLink')
           setProgress((p) => (p === 'linking' ? 'idle' : p))
         },
       })
@@ -304,7 +312,6 @@ const LiquidAuthSettings: React.FC<Props> = () => {
 
       const client = signal.createSignalClient(baseUrl, {
         onLink: () => {
-          logger.debug('[LiquidAuth][DEBUG] signal onLink')
           setProgress((p) => (p === 'linking' ? 'idle' : p))
         },
       })
@@ -348,7 +355,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         <TextInput
           value={liquidAuthSignalingUrl}
           onChangeText={setliquidAuthSignalingUrl}
-          placeholder="https://your-backend.example.com/health"
+          placeholder="https://your-backend.example.com/"
           placeholderTextColor={ColorPalette.grayscale.mediumGrey}
           autoCapitalize="none"
           autoCorrect={false}

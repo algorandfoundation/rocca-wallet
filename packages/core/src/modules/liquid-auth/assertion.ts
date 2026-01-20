@@ -2,6 +2,7 @@ import { toBase64URL, fromBase64Url } from '@algorandfoundation/liquid-client'
 import { sha256 } from '@noble/hashes/sha2'
 import { buildAuthenticatorData } from './cbor'
 import { captureConnectSid, syncConnectSidFromCookies } from './sessionCookie'
+import { bifoldLoggerInstance as logger } from '../../services/bifoldLogger'
 
 export async function requestAssertionOptions(baseUrl: string, userAgent: string, credId: string): Promise<any> {
   const res = await fetch(`${baseUrl}/assertion/request/${credId}`, {
@@ -17,8 +18,10 @@ export async function requestAssertionOptions(baseUrl: string, userAgent: string
   try {
     const setCookie = res.headers.get('set-cookie')
     captureConnectSid(setCookie)
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.debug('[LiquidAuth][assertion] Failed to capture connect.sid from requestAssertionOptions response', {
+      error: e as unknown as Record<string, unknown>,
+    })
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -126,8 +129,10 @@ export async function submitAssertionResponse(
   try {
     const setCookie = res.headers.get('set-cookie')
     captureConnectSid(setCookie)
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.debug('[LiquidAuth][assertion] Failed to capture connect.sid from submitAssertionResponse response', {
+      error: e as unknown as Record<string, unknown>,
+    })
   }
   const body = await res.text()
   return { ok: res.ok, status: res.status, body }
@@ -199,8 +204,12 @@ export async function runAssertionFlow(params: {
   // Sync it into memory so SignalClient can reuse it.
   try {
     await syncConnectSidFromCookies(baseUrl)
-  } catch {
-    // ignore; cookie sync is best-effort
+  } catch (e) {
+    // cookie sync is best-effort
+    logger.debug('[LiquidAuth][assertion] syncConnectSidFromCookies failed', {
+      error: e as unknown as Record<string, unknown>,
+      baseUrl,
+    })
   }
 
   return { ok, status, body, credential }
