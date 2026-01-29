@@ -175,6 +175,21 @@ export async function startPeer(
         handlers?.onMessage?.('[unreadable message]')
       }
     }
+    // Expose the data channel and a safe send helper on the client so
+    // callers (e.g. LiquidAuthScan) can send ARC27 responses back to the
+    // browser over the established data channel.
+    try {
+      ;(client as any)._dataChannel = dataChannel
+      ;(client as any).sendData = (payload: string) => {
+        try {
+          ;(client as any)._dataChannel?.send(payload)
+        } catch (e) {
+          logger.debug('[LiquidAuth][DEBUG] sendData failed', { error: e })
+        }
+      }
+    } catch (e) {
+      logger.debug('[LiquidAuth][DEBUG] could not attach dataChannel to client', { error: e })
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     // Gracefully retry when server says a request is already in process

@@ -38,6 +38,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@algorandfoundation/algokit-utils": "10.0.0-alpha.29",
     "@algorandfoundation/dp256": "^1.1.0",
     "@babel/core": "~7.22.20",
     "@babel/runtime": "~7.23.9",
@@ -154,6 +155,7 @@
     "uuid": "~9.0.1"
   },
   "peerDependencies": {
+    "@algorandfoundation/algokit-utils": "10.0.0-alpha.29",
     "@algorandfoundation/dp256": "^1.1.0",
     "@credo-ts/anoncreds": "0.5.17",
     "@credo-ts/askar": "0.5.17",
@@ -242,7 +244,6 @@
   },
   "dependencies": {
     "@algorandfoundation/algo-models": "^0.0.8",
-    "@algorandfoundation/algokit-utils": "^9.1.2",
     "@algorandfoundation/liquid-client": "file:../../algorandfoundation-liquid-client-1.0.0-canary.3.tgz",
     "@algorandfoundation/xhd-wallet-api": "file:../../algorandfoundation-xhd-wallet-api-v2.0.0-canary.1.tgz",
     "@noble/hashes": "^1.4.0",

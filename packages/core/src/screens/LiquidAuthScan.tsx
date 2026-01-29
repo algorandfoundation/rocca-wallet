@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { StackScreenProps } from '@react-navigation/stack'
 import { useTranslation } from 'react-i18next'
+import { useTheme } from '../contexts/theme'
 import { DeliveryStackParams, Screens, Stacks } from '../types/navigators'
-import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../services/algorandHDWallet'
+import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../modules/algorand/algorandHDWallet'
 import { hasHDWalletKey, generateAndStoreHDWalletKey } from '../services/hdWalletKeychain'
 import { loadMnemonic } from '../services/keychain'
 import { DeterministicP256 } from '@algorandfoundation/dp256'
@@ -18,6 +19,12 @@ import type { AttestationRequestOptions } from '../modules/liquid-auth/register'
 import { runAssertionFlow } from '../modules/liquid-auth/assertion'
 import { bifoldLoggerInstance as logger } from '../services/bifoldLogger'
 import getUserAgent from '../modules/liquid-auth/userAgent'
+import { handleARC27Txn } from '../modules/algorand/transactions'
+import { toBase64URL } from '@algorandfoundation/liquid-client'
+import SafeAreaModal from '../components/modals/SafeAreaModal'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import FauxHeader from '../components/misc/FauxHeader'
+import PINVerify, { PINEntryUsage } from './PINVerify'
 
 type Props = StackScreenProps<DeliveryStackParams, Screens.LiquidAuthScan>
 
@@ -34,6 +41,7 @@ type ProgressPhase =
 const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   const { uri } = route.params
   const { t } = useTranslation()
+  const { ColorPalette } = useTheme()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
@@ -50,6 +58,9 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
   const [lastSignalMessage, setLastSignalMessage] = useState<string | undefined>()
   const [signalError, setSignalError] = useState<string | undefined>()
   const [attemptedAction, setAttemptedAction] = useState<'register' | 'authenticate' | null>(null)
+  const [approveModalOpen, setApproveModalOpen] = useState(false)
+  const approveResolverRef = useRef<((sig: string | null) => void) | null>(null)
+  const approveBytesRef = useRef<Uint8Array | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -272,7 +283,54 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
           setProgress('connected')
         },
         onMessage: (m) => {
+          // Some peers now send a JSON initial message containing { my_address: "..." }
+          // Treat that as the initial peer address and skip ARC27 handling for it.
+          try {
+            const parsed = JSON.parse(m as string)
+            if (parsed) {
+              const addr = typeof parsed.my_address === 'string' ? parsed.my_address : typeof parsed.address === 'string' ? parsed.address : undefined
+              if (addr) {
+                setLastSignalMessage(`peer address: ${addr}`)
+                return
+              }
+            }
+          } catch (e) {
+            // not JSON, fall through to normal handling
+          }
+
           setLastSignalMessage(m)
+
+          // Attempt to handle ARC27 transaction requests
+          ;(async () => {
+            if (!hdWalletService) return
+
+            const signer = async (bytesToSign: Uint8Array): Promise<string | null> => {
+              // Open approval modal and wait for secure authentication to produce a signature
+              return new Promise<string | null>((resolve) => {
+                approveBytesRef.current = bytesToSign
+                setApproveModalOpen(true)
+                approveResolverRef.current = (sig: string | null) => {
+                  approveBytesRef.current = null
+                  approveResolverRef.current = null
+                  resolve(sig)
+                }
+              })
+            }
+
+            try {
+              const resp = await handleARC27Txn(m, signer)
+              if (resp) {
+                // send back over data channel if available
+                try {
+                  (client as any).sendData?.(resp)
+                } catch (e) {
+                  logger.error('[LiquidAuth][Scan] failed to send ARC27 response', { error: e as unknown as Record<string, unknown> })
+                }
+              }
+            } catch (e) {
+              logger.debug('[LiquidAuth][Scan] ARC27 handler error', { error: e as unknown as Record<string, unknown> })
+            }
+          })()
         },
         onError: (e) => {
           logger.error('[LiquidAuth][Scan] Signal error', { error: e as unknown as Record<string, unknown> })
@@ -324,9 +382,53 @@ const LiquidAuthScan: React.FC<Props> = ({ route, navigation }) => {
     }
     startSignalFlow(signalClient, requestId)
   }
+    // (old direct auth flow removed; using PINVerify modal instead)
 
-  return (
+    const handleApproveDeny = () => {
+      approveResolverRef.current?.(null)
+      approveBytesRef.current = null
+      approveResolverRef.current = null
+      setApproveModalOpen(false)
+    }
+
+    const onApproveAuthenticated = async (status: boolean) => {
+      setApproveModalOpen(false)
+      if (!status) {
+        approveResolverRef.current?.(null)
+        return
+      }
+
+      try {
+        const authHd = await createAlgorandHDWalletService()
+        if (!authHd) {
+          approveResolverRef.current?.(null)
+          return
+        }
+
+        const bytes = approveBytesRef.current
+        if (!bytes) {
+          approveResolverRef.current?.(null)
+          return
+        }
+
+        const sig = await authHd.signAlgorandTransaction(0, 0, bytes)
+        approveResolverRef.current?.(toBase64URL(sig))
+      } catch (err) {
+        logger.error('[LiquidAuth][Scan] transaction signing failed (PINVerify)', { error: err as unknown as Record<string, unknown> })
+        approveResolverRef.current?.(null)
+      } finally {
+        approveBytesRef.current = null
+        approveResolverRef.current = null
+      }
+    }
+
+    return (
     <View style={styles.container}>
+        <SafeAreaModal visible={approveModalOpen} transparent={false} animationType={'slide'} presentationStyle={'fullScreen'} statusBarTranslucent={true}>
+          <SafeAreaView edges={['top']} style={{ backgroundColor: ColorPalette.brand.primary }} />
+          <FauxHeader title={'Authorize Signing'} onBackPressed={handleApproveDeny} />
+          <PINVerify usage={PINEntryUsage.Signing} setAuthenticated={onApproveAuthenticated} onCancelAuth={handleApproveDeny} />
+        </SafeAreaModal>
       <Text style={styles.title}>Liquid Auth</Text>
       <Text style={styles.label}>Scanned URI:</Text>
       <Text selectable style={styles.uri}>

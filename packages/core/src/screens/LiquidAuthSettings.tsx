@@ -7,7 +7,7 @@ import { StackScreenProps } from '@react-navigation/stack'
 import { ThemedText } from '../components/texts/ThemedText'
 import { useTheme } from '../contexts/theme'
 import { Screens, SettingStackParams } from '../types/navigators'
-import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../services/algorandHDWallet'
+import { isAlgorandHDWalletAvailable, createAlgorandHDWalletService } from '../modules/algorand/algorandHDWallet'
 import { hasHDWalletKey, generateAndStoreHDWalletKey } from '../services/hdWalletKeychain'
 import { loadMnemonic } from '../services/keychain'
 import { DeterministicP256 } from '@algorandfoundation/dp256'
@@ -15,11 +15,14 @@ import { loadDp256MainKey } from '../services/hdWalletKeychain'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import * as signal from '../modules/liquid-auth/signal'
 import { encodeAddress } from '../modules/hd-wallet/hdWalletUtils'
+import { createGroupTxnToSign, broadcastSignedGroupTxn } from '../modules/algorand/transactions'
+import { fromBase64Url, toBase64URL } from '@algorandfoundation/liquid-client'
 import { runAttestationFlow } from '../modules/liquid-auth/register'
 import type { AttestationRequestOptions } from '../modules/liquid-auth/register'
 import { runAssertionFlow } from '../modules/liquid-auth/assertion'
 import { bifoldLoggerInstance as logger } from '../services/bifoldLogger'
 import getUserAgent from '../modules/liquid-auth/userAgent'
+import { encodeTransaction } from '@algorandfoundation/algokit-utils/transact'
 
 type Props = StackScreenProps<SettingStackParams, Screens.LiquidAuthSettings>
 
@@ -27,7 +30,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   useTranslation()
   const { ColorPalette, TextTheme } = useTheme()
 
-  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://debug.liquidauth.com')
+  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://beetle-never.ngrok-free.app')//'https://debug.liquidauth.com')
   const [pawnEndpoint, setPawnEndpoint] = useState<string>('https://worm-different.ngrok.dev')
   // Helper to fetch requestId from Pawn Endpoint
   const fetchRequestId = useCallback(async () => {
@@ -53,6 +56,12 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const isStartingPeerRef = useRef(false)
   const [lastSignalMessage, setLastSignalMessage] = useState<string | undefined>()
   const [signalError, setSignalError] = useState<string | undefined>()
+  const awaitingPawnSignatureRef = useRef(false)
+  const pendingGroupTxnsRef = useRef<any[] | null>(null)
+  const pendingRoccaSigRef = useRef<Uint8Array | null>(null)
+  const pendingPawnAddrRef = useRef<string | null>(null)
+  const [queuedPawnAddress, setQueuedPawnAddress] = useState<string | null>(null)
+  const signalClientRef = useRef<signal.SignalClient | null>(null)
 
   const styles = StyleSheet.create({
     container: {
@@ -110,13 +119,16 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         setError('')
         // Ensure mnemonic / HD wallet is available
         const available = await isAlgorandHDWalletAvailable()
+        logger.info('[LiquidAuth][Settings] HD wallet availability check', { available })
         if (!available) {
           setError('Recovery phrase not set. Please set your recovery phrase first.')
           return
         }
         const hasKey = await hasHDWalletKey()
+        logger.info('[LiquidAuth][Settings] hasHDWalletKey', { hasKey })
         if (!hasKey) {
           const mnemonic = await loadMnemonic()
+          logger.info('[LiquidAuth][Settings] loadMnemonic result', { hasMnemonic: !!mnemonic })
           if (mnemonic) {
             try {
               await generateAndStoreHDWalletKey(mnemonic)
@@ -125,7 +137,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
             }
           }
         }
-        const hd = await createAlgorandHDWalletService()
+        let hd: HDWalletService | null = null
+        try {
+          hd = await createAlgorandHDWalletService()
+        } catch (e) {
+          logger.error('[LiquidAuth][Settings] createAlgorandHDWalletService threw', { error: e as unknown as Record<string, unknown> })
+        }
+        logger.info('[LiquidAuth][Settings] createAlgorandHDWalletService result', { hdPresent: !!hd })
         if (mounted) setHdWalletService(hd)
         // Require Algorand address for dp256 derivation. Fail early if
         // the HD wallet service or address cannot be obtained — we do
@@ -202,6 +220,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
 
   const startSignalFlow = React.useCallback(
     async (client: signal.SignalClient, reqId: string) => {
+      // remember client for queued processing
+      signalClientRef.current = client
       if (isStartingPeerRef.current) return
       isStartingPeerRef.current = true
 
@@ -215,6 +235,127 @@ const LiquidAuthSettings: React.FC<Props> = () => {
             setProgress('connected')
           },
           onMessage: (m) => {
+            // Detect initial peer address message
+            let parsed: any = null
+            try {
+              parsed = JSON.parse(m as string)
+            } catch (e) {
+              parsed = null
+            }
+
+            if (parsed) {
+              const addr = typeof parsed.my_address === 'string' ? parsed.my_address : typeof parsed.address === 'string' ? parsed.address : undefined
+              if (addr) {
+                setLastSignalMessage(`peer address: ${addr}`)
+                logger.info('[LiquidAuth][Settings] received peer address', { address: addr })
+                // Immediate diagnostics to capture race conditions where hdWallet or client
+                // may not yet be ready when the peer address arrives.
+                try {
+                  const hasHd = !!hdWalletService
+                  const hasAddr = !!address
+                  const clientRef = signalClientRef.current || client
+                  const hasClientRef = !!clientRef
+                  // Console log so it appears reliably in runtime logs
+                  // and set a short UI message for quick visibility
+                  // This will help confirm whether the HD wallet was truly initialized
+                  // when the pawn address arrived.
+                  // eslint-disable-next-line no-console
+                  console.log('[LiquidAuth][Settings][DIAG] onMessage', { hasHd, hasAddr, hasClientRef })
+                  setLastSignalMessage(`diag: hd=${hasHd} addr=${hasAddr} client=${hasClientRef}`)
+                } catch (diagErr) {
+                  // ignore
+                }
+
+                // If wallet and client ready, process immediately; otherwise queue
+                const clientRef = signalClientRef.current || client
+                if (!hdWalletService || !address || !clientRef) {
+                  pendingPawnAddrRef.current = addr
+                  setQueuedPawnAddress(addr)
+                  logger.info('[LiquidAuth][Settings] queued peer address until wallet/client ready', { address: addr })
+                  setLastSignalMessage(`peer address queued: ${addr}`)
+                  return
+                }
+                // process immediately
+                logger.info('[LiquidAuth][Settings] processing peer address now', { address: addr })
+                setLastSignalMessage(`processing peer address: ${addr}`)
+                processPawnAddress(addr, clientRef)
+                return
+              }
+            }
+
+            // If we are awaiting the pawn's signature, treat non-JSON message as the signature
+            if (awaitingPawnSignatureRef.current) {
+              ; (async () => {
+                try {
+                  const raw = (m as string)
+
+                  // Pawn may send either a raw base64url string or a JSON payload
+                  // like { sig: "..." } or { signature: "..." } or { stxns: ["..."] }
+                  let sigStr: string | null = null
+                  try {
+                    const parsed = JSON.parse(raw)
+                    if (typeof parsed === 'string') {
+                      sigStr = parsed
+                    } else if (parsed && typeof parsed === 'object') {
+                      if (typeof parsed.sig === 'string') sigStr = parsed.sig
+                      else if (typeof parsed.signature === 'string') sigStr = parsed.signature
+                      else if (typeof parsed.bytesToSign === 'string') sigStr = parsed.bytesToSign
+                      else if (Array.isArray(parsed.stxns) && typeof parsed.stxns[0] === 'string') sigStr = parsed.stxns[0]
+                      else if (typeof parsed.stxn === 'string') sigStr = parsed.stxn
+                      else {
+                        // fallback: find first string leaf in the object
+                        const findString = (obj: any): string | null => {
+                          if (!obj || typeof obj !== 'object') return null
+                          for (const k of Object.keys(obj)) {
+                            const v = obj[k]
+                            if (typeof v === 'string') return v
+                            if (v && typeof v === 'object') {
+                              const r = findString(v)
+                              if (r) return r
+                            }
+                          }
+                          return null
+                        }
+                        sigStr = findString(parsed)
+                      }
+                    }
+                  } catch (e) {
+                    // not JSON, treat raw as the signature string
+                    sigStr = raw
+                  }
+
+                  if (!sigStr) throw new Error('No signature string found in pawn message')
+
+                  // decode pawn signature (expect base64url)
+                  const pawnSig = fromBase64Url(sigStr)
+                  const groupTxns = pendingGroupTxnsRef.current
+                  if (!groupTxns) {
+                    logger.error('[LiquidAuth][Settings] no pending group txns when pawn signature arrived')
+                    return
+                  }
+
+                  // assemble signed transactions
+                  const stxn1: any = { txn: groupTxns[0], sig: pawnSig }
+                  const stxn2: any = { txn: groupTxns[1], sig: pendingRoccaSigRef.current }
+
+                  try {
+                    const res = await broadcastSignedGroupTxn([stxn1, stxn2])
+                    setLastSignalMessage(`Group transaction successfully broadcast: ${res.txId}`)
+                  } catch (e) {
+                    logger.error('[LiquidAuth][Settings] broadcast failed', { error: e as unknown as Record<string, unknown> })
+                    setLastSignalMessage('Broadcast failed')
+                  }
+                } catch (err) {
+                  logger.error('[LiquidAuth][Settings] error handling pawn signature', { error: err as unknown as Record<string, unknown> })
+                } finally {
+                  awaitingPawnSignatureRef.current = false
+                  pendingGroupTxnsRef.current = null
+                  pendingRoccaSigRef.current = null
+                }
+              })()
+              return
+            }
+
             setLastSignalMessage(m)
           },
           onError: (e) => {
@@ -227,8 +368,62 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           isStartingPeerRef.current = false
         })
     },
-    [setProgress, setLastSignalMessage, setSignalError]
+    [hdWalletService, address, setProgress, setLastSignalMessage, setSignalError]
   )
+
+  // Processor for pawn address; extracted so it can be invoked from queued state
+  const processPawnAddress = async (pawnAddr: string, client: signal.SignalClient) => {
+    try {
+      if (!hdWalletService || !address) {
+        logger.error('[LiquidAuth][Settings] Missing HD wallet or address for txn signing')
+        return
+      }
+
+      const roccaAddr = address
+      // Create group txns
+      const groupTxns = await createGroupTxnToSign(roccaAddr, pawnAddr)
+      if (!groupTxns || groupTxns.length < 2) {
+        logger.error('[LiquidAuth][Settings] createGroupTxnToSign returned invalid txns')
+        return
+      }
+
+      pendingGroupTxnsRef.current = groupTxns
+
+      // Sign rocca's txn (index 1)
+      const txnToSignByRocca = groupTxns[1]
+      const encodedRoccaTxn = encodeTransaction(txnToSignByRocca)
+      const roccaSig = await hdWalletService.signAlgorandTransaction(0, 0, encodedRoccaTxn)
+      pendingRoccaSigRef.current = roccaSig
+      logger.info('[LiquidAuth][Settings] Rocca signed its txn', { address: roccaAddr })
+      setLastSignalMessage(`Rocca signed its txn; preparing pawn payload for ${pawnAddr}`)
+
+      // Send pawn's txn (index 0) over the data channel as base64url
+      const txnForPawn = groupTxns[0]
+      const encodedPawnTxn = encodeTransaction(txnForPawn)
+      const pawnPayload = toBase64URL(encodedPawnTxn)
+      // Send structured JSON so the Pawn side can parse the message reliably
+      const payloadObj = { bytesToSign: pawnPayload }
+      awaitingPawnSignatureRef.current = true
+        ; (client as any).sendData?.(JSON.stringify(payloadObj))
+    } catch (err) {
+      logger.error('[LiquidAuth][Settings] error preparing/sending group txn', { error: err as unknown as Record<string, unknown> })
+    }
+  }
+
+  // If a pawn address was queued earlier (before HD wallet / client ready),
+  // process it once the HD wallet and signal client are available.
+  useEffect(() => {
+    const queued = queuedPawnAddress || pendingPawnAddrRef.current
+    const client = signalClientRef.current
+    if (queued && hdWalletService && client) {
+      logger.info('[LiquidAuth][Settings] processing queued pawn address now', { address: queued })
+      setLastSignalMessage(`processing queued peer address: ${queued}`)
+      // clear the queued addr immediately to avoid re-processing
+      pendingPawnAddrRef.current = null
+      setQueuedPawnAddress(null)
+      processPawnAddress(queued, client)
+    }
+  }, [hdWalletService])
 
   const onRegister = useCallback(async () => {
     if (!origin || !hdWalletService || !dp256PublicKey) return

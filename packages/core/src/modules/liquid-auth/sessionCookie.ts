@@ -30,7 +30,7 @@ export function getConnectSidCookieHeader(): string | undefined {
 }
 
 // For React Native: pull connect.sid out of the native cookie jar
-// for the given base URL (e.g. https://beetle-never.ngrok-free.app).
+// for the given base URL (e.g. https://debug.liquidauth.com).
 // This is necessary because React Native fetch does not expose the
 // Set-Cookie header to JavaScript.
 export async function syncConnectSidFromCookies(baseUrl: string): Promise<void> {

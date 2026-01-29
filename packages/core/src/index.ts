@@ -97,7 +97,7 @@ export { createLinkSecretIfRequired, getAgentModules } from './utils/agent'
 export { getCredentialIdentifiers, isValidAnonCredsCredential } from './utils/credential'
 export * from './modules/hd-wallet/hdWalletUtils'
 export * from './services/hdWalletKeychain'
-export * from './services/algorandHDWallet'
+export * from './modules/algorand/algorandHDWallet'
 export {
   connectFromScanOrDeepLink,
   formatTime,

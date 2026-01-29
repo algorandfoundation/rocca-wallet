@@ -19,6 +19,7 @@
     "start": "react-native start --reset-cache"
   },
   "dependencies": {
+    "@algorandfoundation/algokit-utils": "10.0.0-alpha.29",
     "@algorandfoundation/dp256": "^1.1.0",
     "@algorandfoundation/liquid-client": "file:../../algorandfoundation-liquid-client-1.0.0-canary.3.tgz",
     "@algorandfoundation/xhd-wallet-api": "file:../../algorandfoundation-xhd-wallet-api-v2.0.0-canary.1.tgz",
