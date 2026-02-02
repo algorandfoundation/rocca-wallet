@@ -22,7 +22,7 @@ import { PostTransactionsResponse } from '@algorandfoundation/algokit-utils/pack
 
 // 
 
-export const createGroupTxnToSign = async (rocca_address: string, pawn_address: string): Promise<Transaction[]> => {
+export const createSingleTxnToSign = async (address: string): Promise<Transaction> => {
 
   const algorand = await AlgorandClient.testNet();
 
@@ -30,6 +30,40 @@ export const createGroupTxnToSign = async (rocca_address: string, pawn_address: 
 
   const pay1: PaymentTransactionFields = {
     amount: 0n,
+    receiver: Address.fromString(address),
+  }
+
+  const txnFields1: TransactionParams = {
+    type: TransactionType.Payment,
+    payment: pay1,
+    sender: Address.fromString(address),
+    fee: 2000n,//suggested_params.minFee,
+    firstValid: suggested_params.firstValid,
+    lastValid: suggested_params.lastValid,
+    genesisHash: suggested_params.genesisHash,
+    genesisId: suggested_params.genesisId,
+  };
+
+  return new Transaction(txnFields1);
+}
+
+/**
+ * This function creates a group transaction consisting of two transactions:
+ * 1. A payment transaction from the pawn_address to the rocca_address with an amount of 100,000 microAlgos.
+ * 2. A payment transaction from the rocca_address back to itself with an amount of 0 microAlgos.
+ * The purpose of this group transaction is to show one can create Pawn-funded group transactions.
+ * @param pawn_address 
+ * @param rocca_address 
+ * @returns 
+ */
+export const createGroupTxnToSign = async (pawn_address: string, rocca_address: string): Promise<Transaction[]> => {
+
+  const algorand = await AlgorandClient.testNet();
+
+  const suggested_params = await algorand.getSuggestedParams();
+
+  const pay1: PaymentTransactionFields = {
+    amount: 100_000n, // initialize with 100,000 microAlgos
     receiver: Address.fromString(rocca_address),
   }
 
@@ -45,7 +79,6 @@ export const createGroupTxnToSign = async (rocca_address: string, pawn_address: 
   };
 
   const group_tx1 = new Transaction(txnFields1);
-  console.log("group_tx1:", group_tx1);
 
   const pay2: PaymentTransactionFields = {
     amount: 0n,
@@ -80,7 +113,6 @@ export const broadcastSignedGroupTxn = async (signedTxns: SignedTransaction[]): 
   });
 
   return algorand.client.algod.sendRawTransaction(encodedSignedTxns);
-
 }
 
 

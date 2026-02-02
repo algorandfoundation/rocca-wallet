@@ -15,14 +15,19 @@ import { loadDp256MainKey } from '../services/hdWalletKeychain'
 import type { HDWalletService } from '../modules/hd-wallet/hdWalletUtils'
 import * as signal from '../modules/liquid-auth/signal'
 import { encodeAddress } from '../modules/hd-wallet/hdWalletUtils'
-import { createGroupTxnToSign, broadcastSignedGroupTxn } from '../modules/algorand/transactions'
+import { createGroupTxnToSign, createSingleTxnToSign } from '../modules/algorand/transactions'
 import { fromBase64Url, toBase64URL } from '@algorandfoundation/liquid-client'
 import { runAttestationFlow } from '../modules/liquid-auth/register'
 import type { AttestationRequestOptions } from '../modules/liquid-auth/register'
 import { runAssertionFlow } from '../modules/liquid-auth/assertion'
 import { bifoldLoggerInstance as logger } from '../services/bifoldLogger'
 import getUserAgent from '../modules/liquid-auth/userAgent'
-import { encodeTransaction } from '@algorandfoundation/algokit-utils/transact'
+import { encodeTransaction, encodeSignedTransaction } from '@algorandfoundation/algokit-utils/transact'
+import { AlgorandClient } from '@algorandfoundation/algokit-utils'
+import VerifyPINModal from '../components/modals/VerifyPINModal'
+import { PINEntryUsage } from './PINVerify'
+import InfoBox, { InfoBoxType } from '../components/misc/InfoBox'
+import SafeAreaModal from '../components/modals/SafeAreaModal'
 
 type Props = StackScreenProps<SettingStackParams, Screens.LiquidAuthSettings>
 
@@ -30,7 +35,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   useTranslation()
   const { ColorPalette, TextTheme } = useTheme()
 
-  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://beetle-never.ngrok-free.app')//'https://debug.liquidauth.com')
+  const [liquidAuthSignalingUrl, setliquidAuthSignalingUrl] = useState<string>('https://debug.liquidauth.com')
   const [pawnEndpoint, setPawnEndpoint] = useState<string>('https://worm-different.ngrok.dev')
   // Helper to fetch requestId from Pawn Endpoint
   const fetchRequestId = useCallback(async () => {
@@ -50,6 +55,7 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const [dp256PrivateKey, setDp256PrivateKey] = useState<any | null>(null)
   const [origin, setOrigin] = useState<string | undefined>()
   const [hdWalletService, setHdWalletService] = useState<HDWalletService | null>(null)
+  const [initDone, setInitDone] = useState(false)
   const [, setProgress] = useState<
     'idle' | 'linking' | 'registering' | 'authenticating' | 'starting-peer' | 'connected' | 'failed'
   >('idle')
@@ -59,9 +65,18 @@ const LiquidAuthSettings: React.FC<Props> = () => {
   const awaitingPawnSignatureRef = useRef(false)
   const pendingGroupTxnsRef = useRef<any[] | null>(null)
   const pendingRoccaSigRef = useRef<Uint8Array | null>(null)
+  const pendingPawnSigRef = useRef<string | null>(null)
+  const pendingPawnProcessingRef = useRef(false)
   const pendingPawnAddrRef = useRef<string | null>(null)
   const [queuedPawnAddress, setQueuedPawnAddress] = useState<string | null>(null)
   const signalClientRef = useRef<signal.SignalClient | null>(null)
+
+  const [pinModalVisible, setPinModalVisible] = useState(false)
+  const pendingActionRef = useRef<(() => Promise<void>) | null>(null)
+
+  const [confirmPawnModalVisible, setConfirmPawnModalVisible] = useState(false)
+  const [confirmPawnAddress, setConfirmPawnAddress] = useState<string | null>(null)
+  const [confirmPawnClient, setConfirmPawnClient] = useState<signal.SignalClient | null>(null)
 
   const styles = StyleSheet.create({
     container: {
@@ -210,6 +225,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       } catch (e) {
         setError((e as Error).message)
         logger.error('[LiquidAuth][Settings] Initialization error', { error: e as unknown as Record<string, unknown> })
+      } finally {
+        if (mounted) setInitDone(true)
       }
     }
     run()
@@ -217,6 +234,118 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       mounted = false
     }
   }, [address, liquidAuthSignalingUrl])
+
+  // Process a pawn-provided signature (string). This is extracted so it
+  // can be invoked either from the signal message handler or from
+  // `processPawnAddress` if a signature arrived early.
+  const processPawnSignature = useCallback(
+    async (sigStrParam: string | null) => {
+      try {
+        if (pendingPawnProcessingRef.current) {
+          // already processing a pawn signature; ignore duplicate
+          return
+        }
+        pendingPawnProcessingRef.current = true
+        // clear awaiting flag now that we're handling the signature
+        awaitingPawnSignatureRef.current = false
+        if (!sigStrParam) {
+          logger.error('[LiquidAuth][Settings] processPawnSignature: empty signature')
+          pendingPawnProcessingRef.current = false
+          return
+        }
+
+        const groupTxns = pendingGroupTxnsRef.current
+        if (!groupTxns) {
+          // Nothing to sign against yet — buffer and return
+          pendingPawnSigRef.current = sigStrParam
+          return
+        }
+
+        // Ensure Rocca signature present — sign on-demand if missing
+        let roccaSig = pendingRoccaSigRef.current
+        if (!roccaSig) {
+          if (!hdWalletService) {
+            logger.error('[LiquidAuth][Settings][DIAG] hdWalletService unavailable when computing rocca signature')
+          } else {
+            const encodedRoccaTxn = encodeTransaction(groupTxns[1])
+            const computed = await hdWalletService.signAlgorandTransaction(0, 0, encodedRoccaTxn)
+            pendingRoccaSigRef.current = computed
+            roccaSig = computed
+          }
+        }
+
+        // Decode pawn signature (pawn sends base64url)
+        let pawnSigBytes: Uint8Array | null = null
+        try {
+          pawnSigBytes = sigStrParam ? fromBase64Url(sigStrParam) : null
+        } catch (e) {
+          pawnSigBytes = null
+        }
+
+        let roccaSigBytes: Uint8Array | null = null
+        if (roccaSig instanceof Uint8Array) {
+          roccaSigBytes = roccaSig
+        } else if (typeof roccaSig === 'string') {
+          try {
+            roccaSigBytes = fromBase64Url(roccaSig)
+          } catch (e) {
+            roccaSigBytes = null
+          }
+        } else if (typeof Buffer !== 'undefined' && roccaSig && Buffer.isBuffer(roccaSig)) {
+          roccaSigBytes = new Uint8Array(roccaSig)
+        }
+
+        // Debug
+
+        // Validate signatures
+        if (!pawnSigBytes || pawnSigBytes.length !== 64) {
+          logger.error('[LiquidAuth][Settings] missing or invalid pawn signature; aborting broadcast', { pawnSigBytesLength: pawnSigBytes?.length })
+          setLastSignalMessage('Pawn signature missing or invalid; aborting')
+          awaitingPawnSignatureRef.current = false
+          pendingGroupTxnsRef.current = null
+          pendingRoccaSigRef.current = null
+          pendingPawnSigRef.current = null
+          return
+        }
+
+        if (!roccaSigBytes || roccaSigBytes.length !== 64) {
+          logger.error('[LiquidAuth][Settings] missing or invalid rocca signature; aborting broadcast', { roccaSigBytesLength: roccaSigBytes?.length })
+          setLastSignalMessage('Rocca signature missing or invalid; aborting')
+          awaitingPawnSignatureRef.current = false
+          pendingGroupTxnsRef.current = null
+          pendingRoccaSigRef.current = null
+          pendingPawnSigRef.current = null
+          return
+        }
+
+        const stxn1: any = { txn: groupTxns[0], sig: pawnSigBytes }
+        const stxn2: any = { txn: groupTxns[1], sig: roccaSigBytes }
+
+        const enc1 = encodeSignedTransaction(stxn1)
+        const enc2 = encodeSignedTransaction(stxn2)
+
+
+        try {
+          const res = await (await AlgorandClient.testNet()).client.algod.sendRawTransaction([enc1, enc2])
+
+          logger.info('[LiquidAuth][Settings] broadcast response', { response: res })
+          setLastSignalMessage(`Group transaction successfully broadcast: ${res.txId}`)
+        } catch (e) {
+          logger.error('[LiquidAuth][Settings] broadcast failed', { error: e as unknown as Record<string, unknown> })
+          setLastSignalMessage('Broadcast failed')
+        } finally {
+          awaitingPawnSignatureRef.current = false
+          pendingGroupTxnsRef.current = null
+          pendingRoccaSigRef.current = null
+          pendingPawnSigRef.current = null
+          pendingPawnProcessingRef.current = false
+        }
+      } catch (err) {
+        logger.error('[LiquidAuth][Settings] processPawnSignature error', { error: err as unknown as Record<string, unknown> })
+      }
+    },
+    [hdWalletService]
+  )
 
   const startSignalFlow = React.useCallback(
     async (client: signal.SignalClient, reqId: string) => {
@@ -259,8 +388,6 @@ const LiquidAuthSettings: React.FC<Props> = () => {
                   // and set a short UI message for quick visibility
                   // This will help confirm whether the HD wallet was truly initialized
                   // when the pawn address arrived.
-                  // eslint-disable-next-line no-console
-                  console.log('[LiquidAuth][Settings][DIAG] onMessage', { hasHd, hasAddr, hasClientRef })
                   setLastSignalMessage(`diag: hd=${hasHd} addr=${hasAddr} client=${hasClientRef}`)
                 } catch (diagErr) {
                   // ignore
@@ -275,82 +402,58 @@ const LiquidAuthSettings: React.FC<Props> = () => {
                   setLastSignalMessage(`peer address queued: ${addr}`)
                   return
                 }
-                // process immediately
-                logger.info('[LiquidAuth][Settings] processing peer address now', { address: addr })
-                setLastSignalMessage(`processing peer address: ${addr}`)
-                processPawnAddress(addr, clientRef)
+                // ask user to confirm before creating/sending group txns
+                logger.info('[LiquidAuth][Settings] asking user to confirm processing peer address', { address: addr })
+                setLastSignalMessage(`confirm peer address: ${addr}`)
+                setConfirmPawnAddress(addr)
+                setConfirmPawnClient(clientRef)
+                setConfirmPawnModalVisible(true)
                 return
               }
             }
+
+            // NOTE: do not force-await here; we'll buffer signatures if they arrive
+            // before group txns are ready (see `pendingPawnSigRef` and
+            // `processPawnSignature`).
 
             // If we are awaiting the pawn's signature, treat non-JSON message as the signature
             if (awaitingPawnSignatureRef.current) {
               ; (async () => {
                 try {
                   const raw = (m as string)
-
-                  // Pawn may send either a raw base64url string or a JSON payload
-                  // like { sig: "..." } or { signature: "..." } or { stxns: ["..."] }
-                  let sigStr: string | null = null
+                  let parsedObj: any = null
                   try {
-                    const parsed = JSON.parse(raw)
-                    if (typeof parsed === 'string') {
-                      sigStr = parsed
-                    } else if (parsed && typeof parsed === 'object') {
-                      if (typeof parsed.sig === 'string') sigStr = parsed.sig
-                      else if (typeof parsed.signature === 'string') sigStr = parsed.signature
-                      else if (typeof parsed.bytesToSign === 'string') sigStr = parsed.bytesToSign
-                      else if (Array.isArray(parsed.stxns) && typeof parsed.stxns[0] === 'string') sigStr = parsed.stxns[0]
-                      else if (typeof parsed.stxn === 'string') sigStr = parsed.stxn
-                      else {
-                        // fallback: find first string leaf in the object
-                        const findString = (obj: any): string | null => {
-                          if (!obj || typeof obj !== 'object') return null
-                          for (const k of Object.keys(obj)) {
-                            const v = obj[k]
-                            if (typeof v === 'string') return v
-                            if (v && typeof v === 'object') {
-                              const r = findString(v)
-                              if (r) return r
-                            }
-                          }
-                          return null
-                        }
-                        sigStr = findString(parsed)
-                      }
-                    }
+                    parsedObj = JSON.parse(raw)
                   } catch (e) {
-                    // not JSON, treat raw as the signature string
-                    sigStr = raw
+                    parsedObj = null
                   }
+                  logger.info('[LiquidAuth][Settings][DIAG] pawn raw message', { raw })
 
-                  if (!sigStr) throw new Error('No signature string found in pawn message')
-
-                  // decode pawn signature (expect base64url)
-                  const pawnSig = fromBase64Url(sigStr)
-                  const groupTxns = pendingGroupTxnsRef.current
-                  if (!groupTxns) {
-                    logger.error('[LiquidAuth][Settings] no pending group txns when pawn signature arrived')
+                  if (!parsedObj) {
+                    // Not JSON — unexpected for Pawn; ignore
                     return
                   }
 
-                  // assemble signed transactions
-                  const stxn1: any = { txn: groupTxns[0], sig: pawnSig }
-                  const stxn2: any = { txn: groupTxns[1], sig: pendingRoccaSigRef.current }
+                  if (parsedObj && parsedObj.error) {
+                    const errMsg = typeof parsedObj.error === 'string' ? parsedObj.error : parsedObj.error?.message ?? JSON.stringify(parsedObj.error)
+                    logger.error('[LiquidAuth][Settings] pawn sign error', { error: errMsg })
+                    setLastSignalMessage(`Pawn sign error: ${errMsg}`)
+                    awaitingPawnSignatureRef.current = false
+                    pendingGroupTxnsRef.current = null
+                    pendingRoccaSigRef.current = null
+                    return
+                  }
 
-                  try {
-                    const res = await broadcastSignedGroupTxn([stxn1, stxn2])
-                    setLastSignalMessage(`Group transaction successfully broadcast: ${res.txId}`)
-                  } catch (e) {
-                    logger.error('[LiquidAuth][Settings] broadcast failed', { error: e as unknown as Record<string, unknown> })
-                    setLastSignalMessage('Broadcast failed')
+                  if (parsedObj && parsedObj.type === 'sign-ack') {
+                    return
+                  }
+
+                  if (parsedObj && parsedObj.type === 'sign-response' && typeof parsedObj.signature === 'string') {
+                    await processPawnSignature(parsedObj.signature)
+                    return
                   }
                 } catch (err) {
                   logger.error('[LiquidAuth][Settings] error handling pawn signature', { error: err as unknown as Record<string, unknown> })
-                } finally {
-                  awaitingPawnSignatureRef.current = false
-                  pendingGroupTxnsRef.current = null
-                  pendingRoccaSigRef.current = null
                 }
               })()
               return
@@ -381,7 +484,8 @@ const LiquidAuthSettings: React.FC<Props> = () => {
 
       const roccaAddr = address
       // Create group txns
-      const groupTxns = await createGroupTxnToSign(roccaAddr, pawnAddr)
+      const groupTxns = await createGroupTxnToSign(pawnAddr, roccaAddr)
+      // const groupTxns = [await createSingleTxnToSign(pawnAddr), await createSingleTxnToSign(roccaAddr)]
       if (!groupTxns || groupTxns.length < 2) {
         logger.error('[LiquidAuth][Settings] createGroupTxnToSign returned invalid txns')
         return
@@ -405,6 +509,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
       const payloadObj = { bytesToSign: pawnPayload }
       awaitingPawnSignatureRef.current = true
         ; (client as any).sendData?.(JSON.stringify(payloadObj))
+
+      // If a signature arrived early and was buffered, process it now.
+      if (pendingPawnSigRef.current) {
+        const buffered = pendingPawnSigRef.current
+        pendingPawnSigRef.current = null
+        await processPawnSignature(buffered)
+      }
     } catch (err) {
       logger.error('[LiquidAuth][Settings] error preparing/sending group txn', { error: err as unknown as Record<string, unknown> })
     }
@@ -477,6 +588,11 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     }
   }, [origin, hdWalletService, dp256PublicKey, liquidAuthSignalingUrl, fetchRequestId, startSignalFlow])
 
+  const triggerWithPIN = useCallback((action: () => Promise<void>) => {
+    pendingActionRef.current = action
+    setPinModalVisible(true)
+  }, [])
+
   const onAuthenticate = useCallback(async () => {
     if (!origin || !hdWalletService || !dp256PublicKey || !dp256PrivateKey || !address) return
     try {
@@ -529,6 +645,22 @@ const LiquidAuthSettings: React.FC<Props> = () => {
     startSignalFlow,
   ])
 
+  // Handlers for PIN modal
+  const onPINAuthComplete = useCallback(
+    async (authenticated: any) => {
+      setPinModalVisible(false)
+      const action = pendingActionRef.current
+      pendingActionRef.current = null
+      if (action) await action()
+    },
+    []
+  )
+
+  const onPINCancel = useCallback(() => {
+    setPinModalVisible(false)
+    pendingActionRef.current = null
+  }, [])
+
   return (
     <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
       <View>
@@ -562,13 +694,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
 
         <View style={styles.actions}>
           <TouchableOpacity
-            onPress={onRegister}
-            disabled={!!loading}
-            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
+            onPress={() => triggerWithPIN(onRegister)}
+            disabled={!!loading || !initDone}
+            style={[styles.button, (!!loading || !initDone) ? styles.buttonDisabled : undefined]}
             accessibilityLabel="Register"
             testID="LiquidAuthRegisterButton"
           >
-            {loading === 'register' ? (
+            {(!initDone || loading === 'register') ? (
               <ActivityIndicator color={ColorPalette.grayscale.white} />
             ) : (
               <ThemedText style={{ color: ColorPalette.grayscale.white }}>Register</ThemedText>
@@ -576,13 +708,13 @@ const LiquidAuthSettings: React.FC<Props> = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={onAuthenticate}
-            disabled={!!loading}
-            style={[styles.button, loading ? styles.buttonDisabled : undefined]}
+            onPress={() => triggerWithPIN(onAuthenticate)}
+            disabled={!!loading || !initDone}
+            style={[styles.button, (!!loading || !initDone) ? styles.buttonDisabled : undefined]}
             accessibilityLabel="Authenticate"
             testID="LiquidAuthAuthenticateButton"
           >
-            {loading === 'authenticate' ? (
+            {(!initDone || loading === 'authenticate') ? (
               <ActivityIndicator color={ColorPalette.grayscale.white} />
             ) : (
               <ThemedText style={{ color: ColorPalette.grayscale.white }}>Authenticate</ThemedText>
@@ -603,6 +735,40 @@ const LiquidAuthSettings: React.FC<Props> = () => {
         {lastSignalMessage ? <Text style={{ marginTop: 8 }}>{`Last signal message: ${lastSignalMessage}`}</Text> : null}
         {signalError ? <Text style={{ marginTop: 8, color: '#D00' }}>{`Signal error: ${signalError}`}</Text> : null}
       </View>
+      {/* PIN verification modal for sensitive actions */}
+      <VerifyPINModal
+        title={'Enter PIN'}
+        visible={pinModalVisible}
+        onBackPressed={() => setPinModalVisible(false)}
+        onAuthenticationComplete={onPINAuthComplete}
+        onCancelAuth={onPINCancel}
+        PINVerifyModalUsage={PINEntryUsage.LiquidAuth}
+      />
+
+      {/* Confirmation modal shown when a Pawn address arrives; user must confirm before creating/sending group txns */}
+      <SafeAreaModal visible={confirmPawnModalVisible} transparent={true}>
+        <InfoBox
+          notificationType={InfoBoxType.Info}
+          title={'Pawn Connected'}
+          description={`Pawn peer ${confirmPawnAddress} has connected. Proceed to create and send the grouped transaction?`}
+          onCallToActionPressed={async () => {
+            setConfirmPawnModalVisible(false)
+            const addr = confirmPawnAddress
+            const client = confirmPawnClient
+            setConfirmPawnAddress(null)
+            setConfirmPawnClient(null)
+            if (addr && client) await processPawnAddress(addr, client)
+          }}
+          onCallToActionLabel={'Proceed'}
+          secondaryCallToActionTitle={'Cancel'}
+          secondaryCallToActionPressed={() => {
+            setConfirmPawnModalVisible(false)
+            setConfirmPawnAddress(null)
+            setConfirmPawnClient(null)
+            logger.info('[LiquidAuth][Settings] user cancelled processing pawn address')
+          }}
+        />
+      </SafeAreaModal>
     </SafeAreaView>
   )
 }

@@ -5,6 +5,9 @@ if (typeof global.TextEncoder === 'undefined') {
 }
 import { Buffer } from '@craftzdog/react-native-buffer'
 global.Buffer = Buffer
+
+// URL polyfill, necesasry for AlgoKit Utils
+import 'react-native-url-polyfill/auto';
 import 'react-native-get-random-values' // polyfill for @credo-ts framework
 import 'react-native-gesture-handler'
 import '@formatjs/intl-getcanonicallocales/polyfill'
