@@ -15,7 +15,7 @@ module.exports = {
     '@credo-ts/anoncreds': require.resolve('@credo-ts/anoncreds'),
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(.*react-native.*|uuid|@credo-ts/core|@credo-ts/anoncreds|@scure/.*|@noble/.*|@algorandfoundation/xhd-wallet-api|hmd2v-xhd-wallet-api|bip39|algo-msgpack-with-bigint))',
+    'node_modules/(?!(.*react-native.*|uuid|@credo-ts/core|@credo-ts/anoncreds|@scure/.*|@noble/.*|cbor-x|@algorandfoundation/xhd-wallet-api|bip39|algo-msgpack-with-bigint))',
   ],
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.[jt]sx?$',
   testPathIgnorePatterns: [

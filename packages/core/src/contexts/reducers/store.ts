@@ -28,6 +28,7 @@ enum OnboardingDispatchAction {
   DID_AGREE_TO_TERMS = 'onboarding/didAgreeToTerms',
   DID_CREATE_PIN = 'onboarding/didCreatePIN',
   DID_SET_MNEMONIC = 'onboarding/didSetMnemonic',
+  DID_COMPLETE_DERIVATION = 'onboarding/didCompleteDerivation',
   DID_CONFIRM_PIN = 'onboarding.didConfirmPIN',
   DID_NAME_WALLET = 'onboarding/didNameWallet',
   DID_COMPLETE_ONBOARDING = 'onboarding/didCompleteOnboarding',
@@ -712,6 +713,18 @@ export const reducer = <S extends State>(state: S, action: ReducerAction<Dispatc
       const onboarding = {
         ...state.onboarding,
         didSetMnemonic: true,
+      }
+      const newState = {
+        ...state,
+        onboarding,
+      }
+      PersistentStorage.storeValueForKey(LocalStorageKeys.Onboarding, newState.onboarding)
+      return newState
+    }
+    case OnboardingDispatchAction.DID_COMPLETE_DERIVATION: {
+      const onboarding = {
+        ...state.onboarding,
+        didCompleteDerivation: true,
       }
       const newState = {
         ...state,

@@ -28,6 +28,8 @@ export enum PINEntryUsage {
   PINCheck,
   ChangeBiometrics,
   AccessRecoveryPhrase,
+  Signing,
+  LiquidAuth,
   ChangePIN,
 }
 
@@ -79,6 +81,8 @@ const PINVerify: React.FC<PINVerifyProps> = ({ setAuthenticated, usage = PINEntr
     [PINEntryUsage.ChangeBiometrics]: t('PINEnter.ChangeBiometricsInputLabel'),
     [PINEntryUsage.PINCheck]: t('PINEnter.AppSettingChangedEnterPIN'),
     [PINEntryUsage.AccessRecoveryPhrase]: t('PINEnter.EnterPINToAccess'),
+    [PINEntryUsage.Signing]: t('PINEnter.SigningInputLabel'),
+    [PINEntryUsage.LiquidAuth]: t('PINEnter.LiquidAuthInputLabel'),
     [PINEntryUsage.ChangePIN]: t('PINChange.EnterOldPIN'),
   }
 
@@ -86,6 +90,8 @@ const PINVerify: React.FC<PINVerifyProps> = ({ setAuthenticated, usage = PINEntr
     [PINEntryUsage.ChangeBiometrics]: 'BiometricChangedEnterPIN',
     [PINEntryUsage.PINCheck]: 'AppSettingChangedEnterPIN',
     [PINEntryUsage.AccessRecoveryPhrase]: 'AccessRecoveryPhraseEnterPIN',
+    [PINEntryUsage.Signing]: 'SigningEnterPIN',
+    [PINEntryUsage.LiquidAuth]: 'LiquidAuthEnterPIN',
     [PINEntryUsage.ChangePIN]: 'EnterOldPIN',
   }
 
@@ -93,6 +99,8 @@ const PINVerify: React.FC<PINVerifyProps> = ({ setAuthenticated, usage = PINEntr
     [PINEntryUsage.ChangeBiometrics]: t('Global.Continue'),
     [PINEntryUsage.PINCheck]: t('PINEnter.AppSettingSave'),
     [PINEntryUsage.AccessRecoveryPhrase]: t('PINEnter.AccessRecoveryPhrase'),
+    [PINEntryUsage.Signing]: t('PINEnter.SigningConfirm'),
+    [PINEntryUsage.LiquidAuth]: t('PINEnter.LiquidAuthConfirm'),
     [PINEntryUsage.ChangePIN]: t('Global.Continue'),
   }
 
@@ -100,6 +108,8 @@ const PINVerify: React.FC<PINVerifyProps> = ({ setAuthenticated, usage = PINEntr
     [PINEntryUsage.ChangeBiometrics]: 'Continue',
     [PINEntryUsage.PINCheck]: 'AppSettingSave',
     [PINEntryUsage.AccessRecoveryPhrase]: 'AccessRecoveryPhrase',
+    [PINEntryUsage.Signing]: 'SigningConfirm',
+    [PINEntryUsage.LiquidAuth]: 'LiquidAuthConfirm',
     [PINEntryUsage.ChangePIN]: 'Continue',
   }
 
@@ -107,6 +117,8 @@ const PINVerify: React.FC<PINVerifyProps> = ({ setAuthenticated, usage = PINEntr
     [PINEntryUsage.ChangeBiometrics]: t('PINEnter.ChangeBiometricsSubtext'),
     [PINEntryUsage.PINCheck]: t('PINEnter.AppSettingChanged'),
     [PINEntryUsage.AccessRecoveryPhrase]: t('PINEnter.AccessSecureInfo'),
+    [PINEntryUsage.Signing]: t('PINEnter.SigningSubtext'),
+    [PINEntryUsage.LiquidAuth]: t('PINEnter.LiquidAuthSubtext'),
     [PINEntryUsage.ChangePIN]: '',
   }
 

@@ -48,7 +48,8 @@
     "GotIt": "Got it (PT-BR)",
     "Send": "Enviar",
     "Reset": "Reset (PT-BR)",
-    "ViewJSON": "View JSON Details (PT-BR)"
+    "ViewJSON": "View JSON Details (PT-BR)",
+    "Error": "Erro"
   },
   "Date": {
     "ShortFormat": "D MMM",
@@ -292,6 +293,12 @@
     "EnterPINToAccess": "Por favor, digite seu PIN para acessar sua frase de recuperação.",
     "AccessSecureInfo": "O acesso a informações sensíveis requer autenticação.",
     "AccessRecoveryPhrase": "Acessar",
+    "SigningSubtext": "Aprove a assinatura desta transação com as chaves da sua carteira.",
+    "SigningInputLabel": "Digite seu PIN para assinar a transação",
+    "SigningConfirm": "Assinar",
+    "LiquidAuthSubtext": "Autentique-se ou registre-se no Liquid Auth com sua carteira.",
+    "LiquidAuthInputLabel": "Digite seu PIN para continuar",
+    "LiquidAuthConfirm": "Continuar",
     "ForgotPINLink": "Forgot your PIN? (PT-BR)",
     "ForgotPINModalTitle": "Forgot your PIN? (PT-BR)",
     "ForgotPINModalDescription": "For security purposes, you're unable to recover or reset your PIN. You will need to reinstall your wallet and add your credentials again. (PT-BR)",
@@ -834,11 +841,15 @@
     "HistoryDetails": "History Details (PT-BR)",
     "UpdateAvailable": "Update Available (PT-BR)",
     "JSONDetails": "JSON details (PT-BR)",
-    "SetMnemonics": "Frase de Recuperação"
+    "SetMnemonics": "Frase de Recuperação",
+    "LiquidAuth": "Liquid Auth"
   },
   "Loading": {
     "TakingTooLong": "Isso esta demorando mais que o normal. Você pode voltar para a home ou continuar esperando.",
     "BackToHome": "Voltar para a home"
+  },
+  "LiquidAuth": {
+    "InvalidURI": "URI do Liquid inválida fornecida. requestId ausente."
   },
   "NameWallet": {
     "EnableWalletNaming": "Habilitar nome da carteira?",

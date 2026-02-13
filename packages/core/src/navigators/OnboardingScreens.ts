@@ -13,18 +13,19 @@ type ScreenOptions = RouteConfig<
 >
 
 interface ScreenComponents {
-  SplashScreen: React.FC
-  Preface: React.FC
-  UpdateAvailableScreen: React.FC
-  Terms: React.FC
-  NameWallet: React.FC
-  Biometry: React.FC
-  PushNotifications: React.FC
-  AttemptLockout: React.FC
-  OnboardingScreen: React.FC
-  CreatePINScreen: React.FC
-  SetMnemonicsScreen: React.FC
-  EnterPINScreen: React.FC
+  SplashScreen: React.ComponentType<any>
+  Preface: React.ComponentType<any>
+  UpdateAvailableScreen: React.ComponentType<any>
+  Terms: React.ComponentType<any>
+  NameWallet: React.ComponentType<any>
+  Biometry: React.ComponentType<any>
+  PushNotifications: React.ComponentType<any>
+  AttemptLockout: React.ComponentType<any>
+  OnboardingScreen: React.ComponentType<any>
+  CreatePINScreen: React.ComponentType<any>
+  SetMnemonicsScreen: React.ComponentType<any>
+  EnterPINScreen: React.ComponentType<any>
+  Derivation: React.ComponentType<any>
 }
 
 export const getOnboardingScreens = (
@@ -61,7 +62,7 @@ export const getOnboardingScreens = (
   },
   {
     name: Screens.Onboarding,
-    children: components.OnboardingScreen,
+    component: components.OnboardingScreen,
     options: () => ({
       ...TransitionPresets.SlideFromRightIOS,
       title: t('Screens.Onboarding'),
@@ -81,7 +82,7 @@ export const getOnboardingScreens = (
   },
   {
     name: Screens.CreatePIN,
-    children: components.CreatePINScreen,
+    component: components.CreatePINScreen,
     initialParams: {},
     options: () => ({
       ...TransitionPresets.SlideFromRightIOS,
@@ -92,13 +93,23 @@ export const getOnboardingScreens = (
   },
   {
     name: Screens.SetMnemonics,
-    children: components.SetMnemonicsScreen,
+    component: components.SetMnemonicsScreen,
     initialParams: {},
     options: () => ({
       ...TransitionPresets.SlideFromRightIOS,
       title: t('Screens.SetMnemonics'),
       headerLeft: () => false,
       ...ScreenOptionsDictionary[Screens.SetMnemonics],
+    }),
+  },
+  {
+    name: Screens.Derivation,
+    component: components.Derivation,
+    options: () => ({
+      ...TransitionPresets.SlideFromRightIOS,
+      title: t('Screens.Derivation'),
+      headerLeft: () => false,
+      ...ScreenOptionsDictionary[Screens.Derivation],
     }),
   },
   {
@@ -132,7 +143,7 @@ export const getOnboardingScreens = (
   },
   {
     name: Screens.EnterPIN,
-    children: components.EnterPINScreen,
+    component: components.EnterPINScreen,
     options: () => ({
       title: t('Screens.EnterPIN'),
       headerShown: true,

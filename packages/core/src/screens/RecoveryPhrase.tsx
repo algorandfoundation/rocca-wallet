@@ -141,7 +141,7 @@ const RecoveryPhrase: React.FC = () => {
   }, [])
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.content}>
         {!showMnemonic ? (
           <>

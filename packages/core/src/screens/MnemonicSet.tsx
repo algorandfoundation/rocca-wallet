@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native'
 import { StackNavigationProp } from '@react-navigation/stack'
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, Alert } from 'react-native'
+import { View, StyleSheet, Alert } from 'react-native'
 import { useTranslation } from 'react-i18next'
 
 import MnemonicDisplay from '../components/misc/MnemonicDisplay'
@@ -26,11 +26,14 @@ const MnemonicSet: React.FC = () => {
   const [generatedMnemonic] = useState(() => generateMnemonic())
   const mnemonicWords = generatedMnemonic.split(' ')
 
-  const handleContinue = async (mnemonic: string) => {
+  // Heavy work performed after user confirms backup
+  const performContinue = async (mnemonic: string) => {
     setIsLoading(true)
     try {
-      // Store mnemonic securely using the user's biometry preference
-      // After biometrics screen, user may have enabled or disabled biometrics
+      // Yield to the UI so the loading indicator can render before expensive work
+      // Use requestAnimationFrame then a macrotask to force a paint on React Native
+      await new Promise((res) => requestAnimationFrame(() => res(null)))
+      await new Promise((res) => setTimeout(res, 0))
       const useBiometry = store.preferences.useBiometry
       const success = await storeMnemonic(mnemonic, useBiometry)
 
@@ -39,44 +42,15 @@ const MnemonicSet: React.FC = () => {
       }
 
       // Generate and store HD wallet root key from the mnemonic
-      const hdKeySuccess = await generateAndStoreHDWalletKey(mnemonic, '', useBiometry)
-
-      if (!hdKeySuccess) {
-        throw new Error('HD wallet key generation failed')
-      }
-
-      // Store the mnemonic completion status
-      dispatch({
-        type: DispatchAction.DID_SET_MNEMONIC,
-      })
-      // Navigate to next screen in onboarding flow
-      navigation.navigate(Screens.Onboarding)
-    } catch (error: any) {
-      // Create detailed debug information for the alert
-      const debugInfo = [
-        `Message: ${error.message || 'unknown'}`,
-        `Code: ${error.code || 'unknown'}`,
-        `Type: ${error.constructor?.name || 'unknown'}`,
-        `Stack: ${error.stack?.split('\n')[0] || 'unknown'}`,
-      ].join('\n')
-
-      let errorMessage = 'Failed to securely store your recovery phrase. Please try again.'
-
-      if (error.message.includes('UserCancel')) {
-        errorMessage = 'Authentication was cancelled. Your recovery phrase was not saved.'
-      } else if (error.message.includes('BiometryNotAvailable')) {
-        errorMessage =
-          'Biometric authentication is not available. Your recovery phrase was stored with device security.'
-      } else if (error.message.includes('BiometryNotEnrolled')) {
-        errorMessage = 'Biometric authentication is not set up. Your recovery phrase was stored with device security.'
-      } else if (error.message === 'Keychain storage returned false') {
-        errorMessage = 'Keychain storage failed. Please check your device security settings and try again.'
-      } else {
-        // For debugging - include the actual error message
-        errorMessage = `DEBUG INFO:\n${debugInfo}\n\nPlease share this with the developer.`
-      }
-
-      Alert.alert('Error', errorMessage)
+      await generateAndStoreHDWalletKey(mnemonic, '', useBiometry)
+      // Derivation moved to a separate screen to avoid blocking the UI thread.
+      // We'll navigate to the `Derivation` screen which shows a generating message.
+      // The heavy dp256 derivation and storage has been commented out here and
+      // will be performed (or mocked) from the `Derivation` screen when ready.
+      dispatch({ type: DispatchAction.DID_SET_MNEMONIC })
+      navigation.navigate(Screens.Derivation, { mnemonic })
+    } catch (err) {
+      Alert.alert(String(t('Global.Error') ?? 'Error'), (err as Error)?.message || String(err))
     } finally {
       setIsLoading(false)
     }
@@ -85,51 +59,27 @@ const MnemonicSet: React.FC = () => {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: ColorPalette.brand.primaryBackground,
-      padding: 20,
-      justifyContent: 'space-between',
-    },
-    contentContainer: {
-      flex: 1,
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      marginBottom: 16,
-      textAlign: 'center',
-    },
-    warningContainer: {
-      backgroundColor: ColorPalette.notification.warn + '20',
-      borderRadius: 8,
+      backgroundColor: ColorPalette.grayscale.white,
       padding: 16,
-      marginBottom: 16,
-      borderLeftWidth: 4,
-      borderLeftColor: ColorPalette.notification.warn,
     },
-    warningText: {
-      fontSize: 14,
-      color: ColorPalette.notification.warnText,
-      fontWeight: '500',
-      textAlign: 'center',
-    },
-    controlsContainer: {
-      marginTop: 20,
+    header: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: ColorPalette.grayscale.darkGrey,
+      marginTop: 12,
+      marginBottom: 8,
     },
   })
 
   return (
     <KeyboardView keyboardAvoiding={false}>
       <View style={styles.container}>
-        <View style={styles.contentContainer}>
-          <Text style={styles.title}>{t('Screens.SetMnemonics')}</Text>
-
-          <MnemonicDisplay
-            mnemonicWords={mnemonicWords}
-            generatedMnemonic={generatedMnemonic}
-            isLoading={isLoading}
-            onContinue={handleContinue}
-          />
-        </View>
+        <MnemonicDisplay
+          mnemonicWords={mnemonicWords}
+          generatedMnemonic={generatedMnemonic}
+          isLoading={isLoading}
+          onContinue={performContinue}
+        />
       </View>
     </KeyboardView>
   )

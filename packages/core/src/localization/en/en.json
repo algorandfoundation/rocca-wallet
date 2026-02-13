@@ -49,7 +49,8 @@
     "GotIt": "Got it",
     "Send": "Send",
     "Reset": "Reset",
-    "ViewJSON": "View JSON Details"
+    "ViewJSON": "View JSON Details",
+    "Error": "Error"
   },
   "Date": {
     "ShortFormat": "MMM D",
@@ -310,6 +311,12 @@
     "EnterPINToAccess": "Please enter your PIN to access your recovery phrase.",
     "AccessSecureInfo": "Access to sensitive information requires authentication.",
     "AccessRecoveryPhrase": "Access",
+    "SigningSubtext": "Approve signing this transaction with your wallet keys.",
+    "SigningInputLabel": "Enter your wallet PIN to sign transaction",
+    "SigningConfirm": "Sign",
+    "LiquidAuthSubtext": "Authenticate or register for Liquid Auth with your wallet.",
+    "LiquidAuthInputLabel": "Enter your wallet PIN to continue",
+    "LiquidAuthConfirm": "Continue",
     "ForgotPINLink": "Forgot your PIN?",
     "ForgotPINModalTitle": "Forgot your PIN?",
     "ForgotPINModalDescription": "Forgot your PIN? You'll need to reinstall and setup your wallet again.",
@@ -876,24 +883,32 @@
     "HistoryDetails": "History Details",
     "UpdateAvailable": "Update Available",
     "JSONDetails": "JSON details",
-    "SetMnemonics": "Set Recovery Phrase"
+    "SetMnemonics": "Set Recovery Phrase",
+    "LiquidAuthScan": "Liquid Auth Scan",
+    "LiquidAuthSettings": "Liquid Auth Settings"
   },
   "Loading": {
     "TakingTooLong": "This is taking longer than usual. You can return to home or continue waiting.",
     "BackToHome": "Go back to home"
   },
+  "LiquidAuthScan": {
+    "InvalidURI": "Invalid liquid URI provided. Missing requestId."
+  },
   "Mnemonic": {
-    "WriteDownWarning": "⚠️ Write this down on paper and store it safely. This is the only way to recover your wallet if you lose access to this device.",
+    "WriteDownWarning": "⚠️ Write this down on and keep a backup. Without these words you cannot recover your keys.",
     "StoreSecurely": "Store these words securely - anyone with access to them can control your wallet.",
     "RevealWarning": "Make sure no one is watching your screen",
     "RevealButton": "Reveal Recovery Phrase"
+  },
+  "LiquidAuthSettings": {
+    "Title": "Liquid Auth Settings"
   },
   "RecoveryPhrase": {
     "Title": "Recovery Phrase",
     "RevealTitle": "View Your Recovery Phrase",
     "YourRecoveryPhrase": "Your Recovery Phrase",
     "SecurityWarning": "⚠️ Make sure no one is watching your screen before revealing your recovery phrase.",
-    "WriteDownWarning": "⚠️ Write this down on paper and store it safely. This is the only way to recover your wallet if you lose access to this device.",
+    "WriteDownWarning": "⚠️ Write this down on and keep a backup. Without these words you cannot recover your keys.",
     "Instructions": "Tap the button below to reveal your recovery phrase. Keep it private and secure.",
     "RevealButton": "Show Recovery Phrase",
     "Error": "Error",

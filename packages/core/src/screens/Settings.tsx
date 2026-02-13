@@ -147,6 +147,13 @@ const Settings: React.FC<SettingsProps> = ({ navigation }) => {
           onPress: () => navigation.navigate(Screens.RecoveryPhrase),
         },
         {
+          title: t('LiquidAuthSettings.Title'),
+          value: undefined,
+          accessibilityLabel: t('LiquidAuthSettings.Title'),
+          testID: testIdWithKey('LiquidAuthSettings'),
+          onPress: () => navigation.navigate(Screens.LiquidAuthSettings),
+        },
+        {
           title: t('Settings.Language'),
           value: currentLanguage,
           accessibilityLabel: t('Settings.Language'),
@@ -295,57 +302,57 @@ const Settings: React.FC<SettingsProps> = ({ navigation }) => {
     title: string
     titleTestID?: string
   }> = ({ icon, iconRight, title, titleTestID }) =>
-    // gate keep behind developer mode
-    store.preferences.useConnectionInviterCapability ? (
-      <View style={[styles.section, styles.sectionHeader, { justifyContent: iconRight ? 'space-between' : undefined }]}>
-        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+      // gate keep behind developer mode
+      store.preferences.useConnectionInviterCapability ? (
+        <View style={[styles.section, styles.sectionHeader, { justifyContent: iconRight ? 'space-between' : undefined }]}>
+          <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+            <Icon
+              importantForAccessibility={'no-hide-descendants'}
+              accessible={false}
+              name={icon.name}
+              size={icon.size ?? defaultIconSize}
+              style={[{ marginRight: 10, color: SettingsTheme.iconColor }, icon.style]}
+            />
+            <ThemedText
+              variant="headingThree"
+              testID={titleTestID}
+              numberOfLines={1}
+              accessibilityRole={'header'}
+              style={{ flexShrink: 1 }}
+            >
+              {title}
+            </ThemedText>
+          </View>
+          {iconRight && (
+            <IconButton
+              buttonLocation={ButtonLocation.Right}
+              accessibilityLabel={iconRight.accessibilityLabel!}
+              testID={iconRight.testID!}
+              onPress={iconRight.action!}
+              icon={'pencil'}
+              iconTintColor={TextTheme.headingThree.color}
+            />
+          )}
+        </View>
+      ) : (
+        <View style={[styles.section, styles.sectionHeader]}>
           <Icon
             importantForAccessibility={'no-hide-descendants'}
             accessible={false}
             name={icon.name}
-            size={icon.size ?? defaultIconSize}
-            style={[{ marginRight: 10, color: SettingsTheme.iconColor }, icon.style]}
+            size={24}
+            style={{ marginRight: 10, color: SettingsTheme.iconColor }}
           />
           <ThemedText
+            maxFontSizeMultiplier={1.8}
             variant="headingThree"
-            testID={titleTestID}
-            numberOfLines={1}
             accessibilityRole={'header'}
             style={{ flexShrink: 1 }}
           >
             {title}
           </ThemedText>
         </View>
-        {iconRight && (
-          <IconButton
-            buttonLocation={ButtonLocation.Right}
-            accessibilityLabel={iconRight.accessibilityLabel!}
-            testID={iconRight.testID!}
-            onPress={iconRight.action!}
-            icon={'pencil'}
-            iconTintColor={TextTheme.headingThree.color}
-          />
-        )}
-      </View>
-    ) : (
-      <View style={[styles.section, styles.sectionHeader]}>
-        <Icon
-          importantForAccessibility={'no-hide-descendants'}
-          accessible={false}
-          name={icon.name}
-          size={24}
-          style={{ marginRight: 10, color: SettingsTheme.iconColor }}
-        />
-        <ThemedText
-          maxFontSizeMultiplier={1.8}
-          variant="headingThree"
-          accessibilityRole={'header'}
-          style={{ flexShrink: 1 }}
-        >
-          {title}
-        </ThemedText>
-      </View>
-    )
+      )
 
   const SectionRow: React.FC<{
     title: string
@@ -416,10 +423,10 @@ const Settings: React.FC<SettingsProps> = ({ navigation }) => {
         // Disable virtualization during tests to ensure all items render
         {...(process.env.NODE_ENV === 'test'
           ? {
-              initialNumToRender: 1000,
-              windowSize: 100,
-              maxToRenderPerBatch: 1000,
-            }
+            initialNumToRender: 1000,
+            windowSize: 100,
+            maxToRenderPerBatch: 1000,
+          }
           : {})}
       ></SectionList>
     </SafeAreaView>

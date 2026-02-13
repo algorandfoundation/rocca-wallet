@@ -4,7 +4,7 @@ import {
   getHDWalletRootKey,
   hasHDWalletKey,
   removeHDWalletKey,
-} from '../../../src/services/hdWalletKeychain'
+} from '../hdWalletKeychain'
 
 // Mock the keychain
 jest.mock('react-native-keychain', () => ({
@@ -21,7 +21,7 @@ jest.mock('react-native-keychain', () => ({
 }))
 
 // Mock the HD wallet utils
-jest.mock('../../../src/modules/hd-wallet/hdWalletUtils', () => ({
+jest.mock('../../modules/hd-wallet/hdWalletUtils', () => ({
   createRootKeyFromMnemonicAsync: jest.fn(),
 }))
 

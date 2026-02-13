@@ -58,7 +58,7 @@ import usePreventScreenCapture from './hooks/screen-capture'
 import useBifoldAgentSetup from './hooks/useBifoldAgentSetup'
 import { OpenIDCredentialRecordProvider } from './modules/openid/context/OpenIDCredentialRecordProvider'
 import { DefaultScreenLayoutOptions } from './navigators/defaultLayoutOptions'
-import { DefaultScreenOptionsDictionary } from './navigators/defaultStackOptions'
+import { DefaultScreenOptionsDictionary, useDefaultStackOptions } from './navigators/defaultStackOptions'
 import Biometry from './screens/Biometry'
 import Onboarding from './screens/Onboarding'
 import OnboardingPages from './screens/OnboardingPages'
@@ -86,7 +86,6 @@ export { defaultState, mergeReducers, StoreContext, StoreProvider, useStore } fr
 export { ThemeProvider, useTheme } from './contexts/theme'
 export { useDeepLinks } from './hooks/deep-links'
 export { initLanguages, initStoredLanguage, Locales, translationResources } from './localization'
-export * from './navigators'
 export { createStyles } from './screens/OnboardingPages'
 export * from './services/storage'
 export { bifoldTheme, ColorPalette, Assets as ImageAssets } from './theme'
@@ -98,7 +97,7 @@ export { createLinkSecretIfRequired, getAgentModules } from './utils/agent'
 export { getCredentialIdentifiers, isValidAnonCredsCredential } from './utils/credential'
 export * from './modules/hd-wallet/hdWalletUtils'
 export * from './services/hdWalletKeychain'
-export * from './services/algorandHDWallet'
+export * from './modules/algorand/algorandHDWallet'
 export {
   connectFromScanOrDeepLink,
   formatTime,
@@ -253,6 +252,7 @@ export {
   UpdateAvailable,
   useActivity,
   useBifoldAgentSetup,
+  useDefaultStackOptions,
   useDeveloperMode,
   usePreventScreenCapture,
   useTour,

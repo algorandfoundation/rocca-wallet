@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ActivityIndicator } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialIcons'
 import { useTranslation } from 'react-i18next'
 
@@ -239,6 +239,31 @@ const MnemonicDisplay: React.FC<MnemonicDisplayProps> = ({
     },
   })
 
+  const overlayStyles = StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    box: {
+      padding: 20,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    text: {
+      color: '#fff',
+      marginTop: 12,
+      textAlign: 'center',
+      maxWidth: 320,
+    },
+  })
+
   return (
     <View style={styles.container}>
       {/* Mode Selector */}
@@ -309,9 +334,8 @@ const MnemonicDisplay: React.FC<MnemonicDisplayProps> = ({
             <Text style={[styles.validationText, isValidMnemonic ? styles.validationSuccess : styles.validationError]}>
               {isValidMnemonic
                 ? `✓ Valid ${importedMnemonic.trim().split(/\s+/).length} word mnemonic`
-                : `❌ Please enter your 24 word recovery phrase (currently ${
-                    importedMnemonic.trim().split(/\s+/).length
-                  } words)`}
+                : `❌ Please enter your 24 word recovery phrase (currently ${importedMnemonic.trim().split(/\s+/).length
+                } words)`}
             </Text>
           )}
 
@@ -356,6 +380,15 @@ const MnemonicDisplay: React.FC<MnemonicDisplayProps> = ({
           </Button>
         </View>
       )}
+
+      {isLoading ? (
+        <View style={overlayStyles.overlay} pointerEvents="none">
+          <View style={overlayStyles.box}>
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={overlayStyles.text}>Generating cryptographic material... This could take a couple of minutes. Please wait.</Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   )
 }

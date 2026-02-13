@@ -5,6 +5,9 @@ if (typeof global.TextEncoder === 'undefined') {
 }
 import { Buffer } from '@craftzdog/react-native-buffer'
 global.Buffer = Buffer
+
+// URL polyfill, necesasry for AlgoKit Utils
+import 'react-native-url-polyfill/auto';
 import 'react-native-get-random-values' // polyfill for @credo-ts framework
 import 'react-native-gesture-handler'
 import '@formatjs/intl-getcanonicallocales/polyfill'
@@ -24,12 +27,15 @@ import '@formatjs/intl-datetimeformat/locale-data/en' // locale-data for en
 import '@formatjs/intl-datetimeformat/add-all-tz' // Add ALL tz data
 import 'reflect-metadata'
 
-// Polyfills for hmd2v-xhd-wallet-api
+// Polyfills for @algorandfoundation/xhd-wallet-api
 import 'react-native-get-random-values'
-// import 'hmd2v-xhd-wallet-api/polyfills'
 
 // Import new wallet API
-import 'hmd2v-xhd-wallet-api'
+import '@algorandfoundation/xhd-wallet-api'
+
+// WebRTC globals for Liquid Auth (polyfill via react-native-webrtc)
+import { registerGlobals } from 'react-native-webrtc'
+registerGlobals()
 
 //Used to decode base64 in sub-modules like openID4Vp, or any other decoder
 import { decode, encode } from 'base-64'

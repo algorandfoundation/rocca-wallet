@@ -16,6 +16,11 @@ export interface WalletHDKey {
   derivationTimestamp: number // When the key was derived
 }
 
+export interface DP256MainKey {
+  mainKey: string // Base64 encoded derived main key
+  derivationTimestamp: number
+}
+
 /**
  * Generates and stores an HD wallet root key from mnemonic
  * This should be called during mnemonic creation/import
@@ -143,5 +148,55 @@ export const removeHDWalletKey = async (): Promise<boolean> => {
     return Boolean(result)
   } catch (error) {
     return false
+  }
+}
+
+/**
+ * Store the dp256 derived main key (base64) in the keychain
+ */
+export const storeDp256MainKey = async (mainKey: Uint8Array, useBiometrics = false): Promise<boolean> => {
+  try {
+    const mainKeyBase64 = toBase64(mainKey)
+    const dpKey: DP256MainKey = { mainKey: mainKeyBase64, derivationTimestamp: Date.now() }
+    const opts = optionsForKeychainAccess(KeychainServices.DP256Main, useBiometrics)
+    const result = await Keychain.setGenericPassword(hdWalletKeyFauxUserName, JSON.stringify(dpKey), opts)
+    return Boolean(result)
+  } catch (error: any) {
+    if (useBiometrics && error.message?.includes('UserCancel')) {
+      return await storeDp256MainKey(mainKey, false)
+    }
+    throw new Error(`Failed to store dp256 main key: ${error.message}`)
+  }
+}
+
+/**
+ * Load the stored dp256 derived main key
+ */
+export const loadDp256MainKey = async (title?: string, description?: string): Promise<Uint8Array | undefined> => {
+  let opts: Keychain.Options = { service: KeychainServices.DP256Main }
+  if (title && description) {
+    opts = { ...opts, authenticationPrompt: { title, description } }
+  }
+
+  try {
+    const result = await Keychain.getGenericPassword(opts)
+    if (!result) return undefined
+    const dpKey = JSON.parse(result.password) as DP256MainKey
+    if (!dpKey?.mainKey) throw new Error('Invalid dp256 key data')
+    return fromBase64(dpKey.mainKey)
+  } catch (error: any) {
+    // If biometric access fails, fall back to non-biometric read
+    if (error.message?.includes('BiometryNotAvailable') || error.message?.includes('BiometryNotEnrolled')) {
+      try {
+        const fallbackOpts = optionsForKeychainAccess(KeychainServices.DP256Main, false)
+        const result = await Keychain.getGenericPassword(fallbackOpts)
+        if (!result) return undefined
+        const dpKey = JSON.parse(result.password) as DP256MainKey
+        return fromBase64(dpKey.mainKey)
+      } catch {
+        return undefined
+      }
+    }
+    return undefined
   }
 }

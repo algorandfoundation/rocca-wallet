@@ -21,6 +21,7 @@ export const defaultState: State = {
     didCompleteTutorial: false,
     didCreatePIN: false,
     didSetMnemonic: false,
+    didCompleteDerivation: false,
     didConsiderPushNotifications: false,
     didConsiderBiometry: false,
     didNameWallet: false,
