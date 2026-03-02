@@ -1,50 +1,73 @@
-# Welcome to your Expo app 👋
+# Rocca Wallet Sample
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This project demonstrates an onboarding flow for a white-label identity solution providing rewards and fee delegation.
 
-## Get started
+## White-Label Configuration
+
+The application is designed as a white-label solution. You can customize the branding and features by modifying the `extra.provider` section in `app.json`:
+
+```json
+"extra": {
+  "provider": {
+    "name": "Aura",
+    "primaryColor": "#3B82F6",
+    "secondaryColor": "#E1EFFF",
+    "accentColor": "#10B981",
+    "welcomeMessage": "Your identity, rewarded.",
+    "showRewards": true,
+    "showFeeDelegation": true,
+    "showIdentityManagement": true
+  }
+}
+```
+
+These values are consumed by the app via `expo-constants`.
+
+## Screen Flow
+1. **Uninitialized (`/uninitialized`)**: Welcome screen for new users (from image 620).
+2. **Generate (`/generate`)**: DID and key generation screen with progress feedback (from image 417).
+3. **Landing (`/landing`)**: Main dashboard for onboarded users.
+
+## Suggested Extensions
+
+To integrate with the identity primitives, the following extensions are suggested:
+
+### 1. Keystore Extension
+- **Purpose**: Securely manage private keys and cryptographic material.
+- **Functionality**:
+  - `generateKeyPair(type: KeyType)`: Create new keys (e.g., Ed25519 for DIDs).
+  - `sign(keyId: string, data: Uint8Array)`: Sign transactions or challenges.
+  - `exportPublicKey(keyId: string)`: Retrieve public keys for DID documents.
+
+### 2. Accounts Extension
+- **Purpose**: High-level wrapper around Keystore for identity management.
+- **Functionality**:
+  - `createAccount(alias: string)`: Associate a key pair with a user-friendly name.
+  - `getAccounts()`: List available accounts.
+  - `getActiveAccount()`: Get the current identity being used.
+
+### 3. DID Extension (New Suggestion)
+- **Purpose**: Handle Decentralized Identifier operations.
+- **Functionality**:
+  - `createDID(publicKey: string)`: Generate a DID string (e.g., `did:key:z...`).
+  - `resolveDID(did: string)`: Fetch the DID Document associated with an identifier.
+  - `updateDIDDocument(did: string, document: DIDDocument)`: Manage service endpoints and verification methods.
+
+### 4. Provider Extension (New Suggestion)
+- **Purpose**: Interface with the centralized "Provider" for rewards and fee delegation.
+- **Functionality**:
+  - `getRewards(account: string)`: Fetch pending rewards for the user.
+  - `requestFeeDelegation(transaction: Transaction)`: Submit a transaction to the provider for co-signing/fee payment.
+  - `onboard(did: string)`: Register the new DID with the provider's white-label system.
+
+## Getting Started
 
 1. Install dependencies
-
    ```bash
    npm install
    ```
 
 2. Start the app
-
    ```bash
    npx expo start
    ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.

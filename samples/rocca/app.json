@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.rocca"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +20,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.rocca"
     },
     "web": {
       "output": "static",
@@ -43,6 +45,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "provider": {
+        "name": "Rocca",
+        "primaryColor": "#3B82F6",
+        "secondaryColor": "#E1EFFF",
+        "accentColor": "#10B981",
+        "welcomeMessage": "Your identity, rewarded.",
+        "logo": "",
+        "showRewards": true,
+        "showFeeDelegation": true,
+        "showIdentityManagement": true
+      }
     }
   }
 }

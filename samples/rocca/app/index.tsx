@@ -1,15 +1,9 @@
-import { Text, View } from "react-native";
+import { Redirect } from "expo-router";
+import { useProvider } from '@/hooks/useProvider'
 
 export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-    </View>
-  );
+  const {keys} = useProvider()
+  console.log(keys)
+  if(keys.length > 0) return <Redirect href="/landing" />;
+  return <Redirect href="/onboarding" />;
 }
