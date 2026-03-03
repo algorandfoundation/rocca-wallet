@@ -24,36 +24,82 @@ The application is designed as a white-label solution. You can customize the bra
 These values are consumed by the app via `expo-constants`.
 
 ## Screen Flow
-1. **Uninitialized (`/uninitialized`)**: Welcome screen for new users (from image 620).
-2. **Generate (`/generate`)**: DID and key generation screen with progress feedback (from image 417).
-3. **Landing (`/landing`)**: Main dashboard for onboarded users.
+The application uses `expo-router` for navigation. The flow is automatically determined by the presence of cryptographic keys:
 
-## Suggested Extensions
+1. **Index (`/`)**: Initial entry point that redirects to either Onboarding or Landing based on the wallet's initialization state.
+2. **Onboarding (`/onboarding`)**: A multi-step flow for new users:
+   - **Welcome**: Introduction to the white-label provider.
+   - **Generate**: Creation of the 24-word recovery phrase and initial DID keys.
+   - **Backup**: Secure display of the recovery phrase for user backup.
+   - **Verify**: Verification step to ensure the user has correctly backed up their phrase.
+3. **Landing (`/landing`)**: The main dashboard for onboarded users, featuring:
+   - Identity (DID) management.
+   - Balance and transaction actions (Send, Receive, Swap).
+   - Integrated Provider services (Rewards, Fee Delegation).
 
-To integrate with the identity primitives, the following extensions are suggested:
+## Architecture
 
-### 1. Keystore Extension
-- **Purpose**: Securely manage private keys and cryptographic material.
+The application is built on the `@algorandfoundation/wallet-provider` architecture, which uses a modular `Extension` system to augment a `Provider` with specific capabilities.
+
+```typescript
+import { Provider } from '@algorandfoundation/wallet-provider';
+
+export class MyProvider extends Provider<typeof MyProvider.EXTENSIONS> {
+    static EXTENSIONS = [
+        WithKeyStore,
+        WithAccountStore,
+        // ... other extensions
+    ] as const
+}
+```
+
+## Extensions
+
+The following extensions are used to provide the wallet's functionality:
+
+### 1. KeyStore Extension (`@algorandfoundation/react-native-keystore`)
+- **Purpose**: Securely manage private keys and cryptographic material using device-native security (Keychain/Keystore).
 - **Functionality**:
-  - `generateKeyPair(type: KeyType)`: Create new keys (e.g., Ed25519 for DIDs).
-  - `sign(keyId: string, data: Uint8Array)`: Sign transactions or challenges.
-  - `exportPublicKey(keyId: string)`: Retrieve public keys for DID documents.
+  - `keys`: List of available keys.
+  - `key.store.generate(options: GenerateOptions)`: Create new keys (e.g., Ed25519).
+  - `key.store.sign(keyId: string, data: Uint8Array)`: Sign transactions or challenges.
+  - `key.store.exportPublicKey(keyId: string)`: Retrieve public keys.
 
-### 2. Accounts Extension
-- **Purpose**: High-level wrapper around Keystore for identity management.
+### 2. AccountStore Extension (`@/extensions/accounts`)
+- **Purpose**: Manages a list of user accounts and their metadata.
 - **Functionality**:
-  - `createAccount(alias: string)`: Associate a key pair with a user-friendly name.
-  - `getAccounts()`: List available accounts.
-  - `getActiveAccount()`: Get the current identity being used.
+  - `accounts`: List of available accounts.
+  - `account.store.addAccount(account: Account)`: Register a new account.
+  - `account.store.getAccount(address: string)`: Retrieve an account by address.
+  - `account.store.removeAccount(address: string)`: Remove an account.
+  - `account.store.clear()`: Remove all accounts.
 
-### 3. DID Extension (New Suggestion)
+### 3. AccountsKeystore Extension (`@/extensions/accounts-keystore`)
+- **Purpose**: Bridges the AccountStore and KeyStore.
+- **Functionality**:
+  - Automatically populates the AccountStore when keys are added to the KeyStore.
+  - Provides a `sign` method on account objects that leverages the KeyStore backend.
+
+### 4. LogStore Extension (`@algorandfoundation/log-store`)
+- **Purpose**: Provides a centralized store for application logs and events.
+- **Functionality**:
+  - `logs`: List of application logs.
+  - `log.info(message: string)`: Add an information log entry.
+  - `log.warn(message: string)`: Add a warning log entry.
+  - `log.error(message: string)`: Add an error log entry.
+  - `log.clear()`: Remove all log entries.
+
+## Suggested Extensions (New)
+
+To further integrate with identity primitives, the following extensions are suggested:
+
+### 1. DID Extension
 - **Purpose**: Handle Decentralized Identifier operations.
 - **Functionality**:
   - `createDID(publicKey: string)`: Generate a DID string (e.g., `did:key:z...`).
   - `resolveDID(did: string)`: Fetch the DID Document associated with an identifier.
-  - `updateDIDDocument(did: string, document: DIDDocument)`: Manage service endpoints and verification methods.
 
-### 4. Provider Extension (New Suggestion)
+### 2. Provider Extension
 - **Purpose**: Interface with the centralized "Provider" for rewards and fee delegation.
 - **Functionality**:
   - `getRewards(account: string)`: Fetch pending rewards for the user.

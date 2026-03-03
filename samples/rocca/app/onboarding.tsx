@@ -257,6 +257,7 @@ export default function OnboardingScreen() {
                         <TouchableOpacity
                           style={[styles.primaryButton, { backgroundColor: primaryColor }]}
                           onPress={() => {
+                            // TODO: randomize
                             const indices = [3, 7, 15, 21];
                             dispatch({ type: 'VERIFY_START', indices });
                           }}
